@@ -38,7 +38,11 @@ fn lex_token(lexer: Lexer) -> #(Lexer, token.TokenType) {
 
 fn lex_int(lexer: Lexer, contents: String) -> #(Lexer, token.TokenType) {
   case string.pop_grapheme(lexer.src) {
-    Error(_) -> #(lexer, token.EOF)
+    Error(_) ->
+      case string.is_empty(contents) {
+        True -> #(lexer, token.EOF)
+        False -> #(lexer, token.Int(contents))
+      }
     Ok(#(grapheme, rest)) -> {
       let assert Ok(re) = regex.from_string("-?\\d+")
       case regex.check(re, grapheme) {
