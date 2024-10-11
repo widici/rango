@@ -38,6 +38,19 @@ pub fn int_arith_lex_test() {
   ])
 }
 
+pub fn str_lex_test() {
+  lex_test_helper("\"abcdefg\"", [token.Str("abcdefg")])
+  lex_test_helper("\"\n\t\"", [token.Str("\n\t")])
+  lex_test_helper("\"\"\"\"", [token.Str(""), token.Str("")])
+  lex_test_helper("(+ \"example str\" 99)", [
+    token.LParen,
+    token.BinOp(token.Add),
+    token.Str("example str"),
+    token.Int("99"),
+    token.RParen,
+  ])
+}
+
 fn lex_test_helper(input: String, output: List(token.TokenType)) {
   lexer.new(input) |> lexer.lex() |> iterator.to_list() |> should.equal(output)
 }
