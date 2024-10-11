@@ -3,6 +3,7 @@ pub type TokenType {
   RParen
   BinOp(BinOp)
   Int(String)
+  Str(String)
   EOF
 }
 

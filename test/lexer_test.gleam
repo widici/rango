@@ -22,7 +22,7 @@ pub fn int_arith_lex_test() {
     token.RParen,
     token.RParen,
   ])
-  lex_test_helper("(+ (/ 2 (- 3 9)))", [
+  lex_test_helper("(+ (/ 2 (- 321 9)))", [
     token.LParen,
     token.BinOp(token.Add),
     token.LParen,
@@ -30,7 +30,7 @@ pub fn int_arith_lex_test() {
     token.Int("2"),
     token.LParen,
     token.BinOp(token.Sub),
-    token.Int("3"),
+    token.Int("321"),
     token.Int("9"),
     token.RParen,
     token.RParen,
