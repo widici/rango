@@ -1,9 +1,14 @@
 pub type TokenType {
   LParen
   RParen
+  UnOp(UnOp)
   BinOp(BinOp)
   Atom(Atom)
   EOF
+}
+
+pub type UnOp {
+  Not
 }
 
 pub type BinOp {

@@ -36,6 +36,7 @@ fn lex_token(lexer: Lexer) -> #(Lexer, token.TokenType) {
     "<=" <> src -> #(advance(lexer, src, 2), token.BinOp(token.Le))
     "and" <> src -> #(advance(lexer, src, 3), token.BinOp(token.And))
     "or" <> src -> #(advance(lexer, src, 2), token.BinOp(token.Or))
+    "!" <> src -> #(advance(lexer, src, 1), token.UnOp(token.Not))
     "(" <> src -> #(advance(lexer, src, 1), token.LParen)
     ")" <> src -> #(advance(lexer, src, 1), token.RParen)
     "True" <> src -> #(advance(lexer, src, 4), token.Atom(token.Bool(True)))

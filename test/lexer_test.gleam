@@ -54,6 +54,23 @@ pub fn str_lex_test() {
   ])
 }
 
+pub fn bool_lex_test() {
+  lex_test_helper("True False", [
+    token.Atom(token.Bool(True)),
+    token.Atom(token.Bool(False)),
+  ])
+  lex_test_helper("(!= (! True) False)", [
+    token.LParen,
+    token.BinOp(token.Ne),
+    token.LParen,
+    token.UnOp(token.Not),
+    token.Atom(token.Bool(True)),
+    token.RParen,
+    token.Atom(token.Bool(False)),
+    token.RParen,
+  ])
+}
+
 fn lex_test_helper(input: String, output: List(token.TokenType)) {
   lexer.new(input) |> lexer.lex() |> iterator.to_list() |> should.equal(output)
 }
