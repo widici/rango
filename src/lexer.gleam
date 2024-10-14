@@ -1,4 +1,3 @@
-import gleam/io
 import gleam/iterator
 import gleam/regex
 import gleam/string
@@ -29,8 +28,18 @@ fn lex_token(lexer: Lexer) -> #(Lexer, token.TokenType) {
     "-" <> src -> #(advance(lexer, src, 1), token.BinOp(token.Sub))
     "*" <> src -> #(advance(lexer, src, 1), token.BinOp(token.Mul))
     "/" <> src -> #(advance(lexer, src, 1), token.BinOp(token.Div))
+    "==" <> src -> #(advance(lexer, src, 2), token.BinOp(token.EqEq))
+    "!=" <> src -> #(advance(lexer, src, 2), token.BinOp(token.Ne))
+    ">" <> src -> #(advance(lexer, src, 1), token.BinOp(token.Gt))
+    "<" <> src -> #(advance(lexer, src, 1), token.BinOp(token.Lt))
+    ">=" <> src -> #(advance(lexer, src, 2), token.BinOp(token.Ge))
+    "<=" <> src -> #(advance(lexer, src, 2), token.BinOp(token.Le))
+    "and" <> src -> #(advance(lexer, src, 3), token.BinOp(token.And))
+    "or" <> src -> #(advance(lexer, src, 2), token.BinOp(token.Or))
     "(" <> src -> #(advance(lexer, src, 1), token.LParen)
     ")" <> src -> #(advance(lexer, src, 1), token.RParen)
+    "True" <> src -> #(advance(lexer, src, 4), token.Atom(token.Bool(True)))
+    "False" <> src -> #(advance(lexer, src, 5), token.Atom(token.Bool(False)))
     "\"" <> src -> advance(lexer, src, 1) |> lex_str("")
     _ -> {
       lex_int(lexer, "")
@@ -43,13 +52,13 @@ fn lex_int(lexer: Lexer, contents: String) -> #(Lexer, token.TokenType) {
     Error(_) ->
       case string.is_empty(contents) {
         True -> #(lexer, token.EOF)
-        False -> #(lexer, token.Int(contents))
+        False -> #(lexer, token.Atom(token.Int(contents)))
       }
     Ok(#(grapheme, rest)) -> {
       let assert Ok(re) = regex.from_string("-?\\d+")
       case regex.check(re, grapheme) {
         True -> lex_int(advance(lexer, rest, 1), contents <> grapheme)
-        False -> #(lexer, token.Int(contents))
+        False -> #(lexer, token.Atom(token.Int(contents)))
       }
     }
   }
@@ -59,7 +68,7 @@ fn lex_str(lexer: Lexer, contents: String) -> #(Lexer, token.TokenType) {
   case lexer.src {
     "" -> panic
     // "" should be handeled as a error in the future
-    "\"" <> rest -> #(advance(lexer, rest, 1), token.Str(contents))
+    "\"" <> rest -> #(advance(lexer, rest, 1), token.Atom(token.Str(contents)))
     str -> {
       let assert Ok(#(grapheme, rest)) = string.pop_grapheme(str)
       lex_str(advance(lexer, rest, 1), contents <> grapheme)
