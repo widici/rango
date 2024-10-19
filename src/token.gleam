@@ -1,33 +1,39 @@
 pub type TokenType {
   LParen
   RParen
-  UnOp(UnOp)
-  BinOp(BinOp)
+  Op(Op)
   Atom(Atom)
   EOF
 }
 
-pub type UnOp {
-  Not
-}
-
-pub type BinOp {
+// TODO: handle differently in the future?
+pub type Op {
+  /// +
   Add
+  /// -
   Sub
+  /// *
   Mul
+  /// /
   Div
+  /// ==
   EqEq
+  /// !=
   Ne
+  /// <
   Lt
-  // Lesser than
+  /// >
   Gt
-  // Greater than
+  /// <=
   Le
-  // Lesser or equal to
+  /// >=
   Ge
-  // Greater or equal to
+  /// and
   And
+  /// or
   Or
+  /// !
+  Not
 }
 
 pub type Atom {

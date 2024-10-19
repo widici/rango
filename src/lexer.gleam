@@ -13,7 +13,7 @@ pub fn new(src: String) -> Lexer {
 
 pub fn lex(lexer: Lexer) -> iterator.Iterator(token.TokenType) {
   use lexer <- iterator.unfold(lexer)
-  case lexer |> lex_token() {
+  case lex_token(lexer) {
     #(_lexer, token.EOF) -> iterator.Done
     #(lexer, token) -> iterator.Next(token, lexer)
   }
@@ -23,20 +23,20 @@ fn lex_token(lexer: Lexer) -> #(Lexer, token.TokenType) {
   case lexer.src {
     "" -> #(lexer, token.EOF)
     " " <> src | "\n" <> src | "\t" <> src ->
-      advance(lexer, src, 1) |> lex_token()
-    "+" <> src -> #(advance(lexer, src, 1), token.BinOp(token.Add))
-    "-" <> src -> #(advance(lexer, src, 1), token.BinOp(token.Sub))
-    "*" <> src -> #(advance(lexer, src, 1), token.BinOp(token.Mul))
-    "/" <> src -> #(advance(lexer, src, 1), token.BinOp(token.Div))
-    "==" <> src -> #(advance(lexer, src, 2), token.BinOp(token.EqEq))
-    "!=" <> src -> #(advance(lexer, src, 2), token.BinOp(token.Ne))
-    ">" <> src -> #(advance(lexer, src, 1), token.BinOp(token.Gt))
-    "<" <> src -> #(advance(lexer, src, 1), token.BinOp(token.Lt))
-    ">=" <> src -> #(advance(lexer, src, 2), token.BinOp(token.Ge))
-    "<=" <> src -> #(advance(lexer, src, 2), token.BinOp(token.Le))
-    "and" <> src -> #(advance(lexer, src, 3), token.BinOp(token.And))
-    "or" <> src -> #(advance(lexer, src, 2), token.BinOp(token.Or))
-    "!" <> src -> #(advance(lexer, src, 1), token.UnOp(token.Not))
+      advance(lexer, src, 1) |> lex_token
+    "+" <> src -> #(advance(lexer, src, 1), token.Op(token.Add))
+    "-" <> src -> #(advance(lexer, src, 1), token.Op(token.Sub))
+    "*" <> src -> #(advance(lexer, src, 1), token.Op(token.Mul))
+    "/" <> src -> #(advance(lexer, src, 1), token.Op(token.Div))
+    "==" <> src -> #(advance(lexer, src, 2), token.Op(token.EqEq))
+    "!=" <> src -> #(advance(lexer, src, 2), token.Op(token.Ne))
+    ">" <> src -> #(advance(lexer, src, 1), token.Op(token.Gt))
+    "<" <> src -> #(advance(lexer, src, 1), token.Op(token.Lt))
+    ">=" <> src -> #(advance(lexer, src, 2), token.Op(token.Ge))
+    "<=" <> src -> #(advance(lexer, src, 2), token.Op(token.Le))
+    "and" <> src -> #(advance(lexer, src, 3), token.Op(token.And))
+    "or" <> src -> #(advance(lexer, src, 2), token.Op(token.Or))
+    "!" <> src -> #(advance(lexer, src, 1), token.Op(token.Not))
     "(" <> src -> #(advance(lexer, src, 1), token.LParen)
     ")" <> src -> #(advance(lexer, src, 1), token.RParen)
     "True" <> src -> #(advance(lexer, src, 4), token.Atom(token.Bool(True)))
