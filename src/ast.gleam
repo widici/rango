@@ -1,7 +1,9 @@
 import token
 
 pub type Expr {
-  Atom(token.Atom)
+  Int(String)
+  Str(String)
+  Bool(Bool)
   Op(token.Op)
   List(List(Expr))
 }
