@@ -20,7 +20,7 @@ pub type Tag {
   F
 }
 
-pub fn encode_arg(opcode: OpCode, tag: Tag) -> BitArray {
+pub fn encode_arg(tag: Tag, opcode: OpCode) -> BitArray {
   let opcode = case opcode {
     Label -> 1
     Move -> 64
