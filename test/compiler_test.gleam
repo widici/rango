@@ -17,7 +17,7 @@ fn encode_arg_test_helper(
 ) {
   case tests {
     [test_case, ..rest] -> {
-      compiler.encode_arg(test_case.0, test_case.1)
+      compiler.encode_arg(test_case.0, compiler.int(test_case.1))
       |> should.equal(test_case.2)
       encode_arg_test_helper(rest)
     }
