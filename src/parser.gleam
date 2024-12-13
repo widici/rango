@@ -3,12 +3,8 @@ import gleam/iterator
 import gleam/option
 import token
 
-pub opaque type Parser {
+pub type Parser {
   Parser(tokens: List(token.TokenType))
-}
-
-pub fn new(tokens: List(token.TokenType)) {
-  Parser(tokens)
 }
 
 pub fn parse(parser: Parser) -> iterator.Iterator(ast.Expr) {

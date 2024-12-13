@@ -9,6 +9,6 @@ pub fn main() {
   let src = erlang.get_line(">>> ") |> result.unwrap("")
   let tokens = lexer.new(src) |> lexer.lex |> iterator.to_list
   tokens |> io.debug
-  let ast = tokens |> parser.new |> parser.parse |> iterator.to_list
+  let ast = parser.Parser(tokens) |> parser.parse |> iterator.to_list
   ast |> io.debug
 }

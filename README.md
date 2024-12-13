@@ -21,7 +21,7 @@ gleam test  # Run the tests
 ### Compiler
 
 - [x] Encode arguments with tags and opcodes
-- [x] Compile Literals (e.g. Integers)
+- [x] Compile Literals (Integers for now)
 - [ ] Compile basic mathematical expressions
 
 ### Miscellaneous
