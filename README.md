@@ -1,20 +1,4 @@
-# lisp
-
-[![Package Version](https://img.shields.io/hexpm/v/lisp)](https://hex.pm/packages/lisp)
-[![Hex Docs](https://img.shields.io/badge/hex-docs-ffaff3)](https://hexdocs.pm/lisp/)
-
-```sh
-gleam add lisp@1
-```
-```gleam
-import lisp
-
-pub fn main() {
-  // TODO: An example of the project in use
-}
-```
-
-Further documentation can be found at <https://hexdocs.pm/lisp>.
+# Lisp
 
 ## Development
 
@@ -22,3 +6,29 @@ Further documentation can be found at <https://hexdocs.pm/lisp>.
 gleam run   # Run the project
 gleam test  # Run the tests
 ```
+
+## Todo
+
+### Lexer
+
+* Lex Literals (Strings, Integers, Booleans, etc.)
+* Lex basic operators (e.g. arithmetic operators)
+* Unit testing
+
+### Parser
+
+* Parse basic expressions with operators via lists
+* Unit testing
+
+### Compiler
+
+* Encode arguments with tags and opcodes
+* Compile Literals (e.g. Integers)
+* Compile basic mathematical expressions
+* Unit testing
+
+### Miscellaneous
+
+* Improve docs
+* Add better error handling
+* Add examples
