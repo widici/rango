@@ -11,24 +11,22 @@ gleam test  # Run the tests
 
 ### Lexer
 
-* Lex Literals (Strings, Integers, Booleans, etc.)
-* Lex basic operators (e.g. arithmetic operators)
-* Unit testing
+- [x] Lex Literals (Strings, Integers, Booleans, etc.)
+- [x] Lex basic operators (e.g. arithmetic operators)
 
 ### Parser
 
-* Parse basic expressions with operators via lists
-* Unit testing
+- [x] Parse basic expressions with operators via lists
 
 ### Compiler
 
-* Encode arguments with tags and opcodes
-* Compile Literals (e.g. Integers)
-* Compile basic mathematical expressions
-* Unit testing
+- [x] Encode arguments with tags and opcodes
+- [x] Compile Literals (e.g. Integers)
+- [ ] Compile basic mathematical expressions
 
 ### Miscellaneous
 
-* Improve docs
-* Add better error handling
-* Add examples
+- [ ] Improve docs
+- [ ] Add better error handling
+- [ ] Add examples
+- [ ] Unit testing for the parts above
