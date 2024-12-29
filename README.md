@@ -22,7 +22,11 @@ gleam test  # Run the tests
 
 - [x] Encode arguments with tags and opcodes
 - [x] Compile Literals (Integers for now)
-- [ ] Compile basic mathematical expressions
+- [x] Compile basic mathematical expressions (add, sub, mul for now)
+- [ ] Add Beam file header
+- [ ] Compile atom table chunk
+- [ ] Compile export table chunk
+- [ ] Compile import table chunk
 
 ### Miscellaneous
 
