@@ -18,6 +18,8 @@ pub fn int_opc(opcode: OpCode) -> Int {
 
 /// Represents Tags used for beam-vm bytecode
 pub type Tag {
+  /// Unsigned
+  U
   /// Integer
   I
   /// X register
@@ -29,6 +31,7 @@ pub type Tag {
 /// Returns the corresponding Int used to represent a given Tag
 pub fn int_tag(tag: Tag) -> Int {
   case tag {
+    U -> 0
     I -> 1
     X -> 3
     F -> 5

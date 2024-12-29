@@ -13,6 +13,7 @@ pub fn parse(parser: Parser) -> iterator.Iterator(ast.Expr) {
 }
 
 // TODO: handle getting the last parser accumulator in a better way
+// Maybe with map_fold?
 fn parse_exprs(
   parser: Parser,
   is_inner: Bool,

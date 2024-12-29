@@ -1,15 +1,15 @@
 import gleam/dict
 
 /// Used for finding the id of a func based on the atom-ids of the module:func/arity
-type ImportTable =
+pub type Imports =
   dict.Dict(#(Int, Int, Int), Int)
 
-/// Connects a atom represented by a string with it's corresponding id
+/// Maps an atom represented by a string based on it's corresponding id
 /// Using a Dict here instead of a List should provide a better time-compexity in Gleam
-type Atoms =
+pub type Atoms =
   dict.Dict(String, Int)
 
-fn get_atom_id(atoms: Atoms, name: String) -> #(Atoms, Int) {
+pub fn get_atom_id(atoms: Atoms, name: String) -> #(Atoms, Int) {
   case dict.has_key(atoms, name) {
     True -> {
       let assert Ok(res) = dict.get(atoms, name)
@@ -21,13 +21,13 @@ fn get_atom_id(atoms: Atoms, name: String) -> #(Atoms, Int) {
   }
 }
 
-fn resolve_func_sig(
+pub fn resolve_func_id(
   atoms: Atoms,
-  imports: ImportTable,
+  imports: Imports,
   module: String,
   func: String,
   arity: Int,
-) -> #(Atoms, ImportTable, Result(Int, Nil)) {
+) -> #(Atoms, Imports, Result(Int, Nil)) {
   let #(atoms, module_id) = get_atom_id(atoms, module)
   let #(atoms, func_id) = get_atom_id(atoms, func)
   #(atoms, imports, #(module_id, func_id, arity) |> dict.get(imports, _))
