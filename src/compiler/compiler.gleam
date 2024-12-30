@@ -1,18 +1,25 @@
 import ast
 import compiler/arg
-import compiler/chunk
 import gleam/bytes_tree
 import gleam/dict
 import gleam/int
 import gleam/list
 import token
 
+pub type Imports =
+  dict.Dict(#(Int, Int, Int), Int)
+
+/// Maps an atom represented by a string based on it's corresponding id
+/// Using a Dict here instead of a List should provide a better time-compexity in Gleam
+pub type Atoms =
+  dict.Dict(String, Int)
+
 pub opaque type Compiler {
   Compiler(
     stack_size: Int,
     data: bytes_tree.BytesTree,
-    atoms: chunk.Atoms,
-    imports: chunk.Imports,
+    atoms: Atoms,
+    imports: Imports,
   )
 }
 
@@ -84,9 +91,8 @@ fn compile_arth_expr(
     |> append_arg(arg.encode_arg(arg.int_tag(arg.U), 2))
 
   let #(compiler, id) = case
-    chunk.resolve_func_id(
-      compiler.atoms,
-      compiler.imports,
+    resolve_func_id(
+      compiler,
       case operator {
         token.Add -> "+"
         token.Sub -> "-"
@@ -98,9 +104,7 @@ fn compile_arth_expr(
       2,
     )
   {
-    #(atoms, imports, Ok(id)) -> {
-      #(Compiler(..compiler, atoms: atoms, imports: imports), id)
-    }
+    #(compiler, Ok(id)) -> #(compiler, id)
     _ -> panic
   }
 
@@ -110,4 +114,30 @@ fn compile_arth_expr(
     |> append_arg(arg.encode_arg(arg.int_tag(arg.X), compiler.stack_size - 1))
     |> append_arg(arg.encode_arg(arg.int_tag(arg.X), compiler.stack_size - 2))
   Compiler(..compiler, stack_size: compiler.stack_size - 2)
+}
+
+pub fn get_atom_id(compiler: Compiler, name: String) -> #(Compiler, Int) {
+  case dict.has_key(compiler.atoms, name) {
+    True -> {
+      let assert Ok(res) = dict.get(compiler.atoms, name)
+      #(compiler, res)
+    }
+    False ->
+      Compiler(
+        ..compiler,
+        atoms: dict.insert(compiler.atoms, name, dict.size(compiler.atoms)),
+      )
+      |> get_atom_id(name)
+  }
+}
+
+pub fn resolve_func_id(
+  compiler: Compiler,
+  module: String,
+  func: String,
+  arity: Int,
+) -> #(Compiler, Result(Int, Nil)) {
+  let #(compiler, module_id) = get_atom_id(compiler, module)
+  let #(compiler, func_id) = get_atom_id(compiler, func)
+  #(compiler, #(module_id, func_id, arity) |> dict.get(compiler.imports, _))
 }

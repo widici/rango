@@ -25,8 +25,7 @@ gleam test  # Run the tests
 - [x] Compile basic mathematical expressions (add, sub, mul for now)
 - [ ] Add Beam file header
 - [ ] Compile atom table chunk
-- [ ] Compile export table chunk
-- [ ] Compile import table chunk
+- [ ] Compile import & export table chunk
 
 ### Miscellaneous
 
