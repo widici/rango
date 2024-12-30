@@ -14,7 +14,7 @@ pub type Imports =
 pub type Atoms =
   dict.Dict(String, Int)
 
-pub opaque type Compiler {
+pub type Compiler {
   Compiler(
     stack_size: Int,
     data: bytes_tree.BytesTree,
@@ -87,7 +87,6 @@ fn compile_arth_expr(
     |> append_arg(<<arg.int_opc(arg.GcBif2)>>)
     // A fail will throw an exception on error due to flag being 0
     |> append_arg(arg.encode_arg(arg.int_tag(arg.F), 0))
-    // TODO: Check if this is correct!
     |> append_arg(arg.encode_arg(arg.int_tag(arg.U), 2))
 
   let #(compiler, id) = case
