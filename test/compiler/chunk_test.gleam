@@ -1,0 +1,37 @@
+import compiler/chunk
+import compiler/compiler
+import gleam/bit_array
+import gleam/bytes_tree
+import gleam/list
+import gleeunit/should
+
+pub fn pad_chunk_test() {
+  [
+    <<0x00>>,
+    bit_array.from_string("test"),
+    <<123_456_789>>,
+    list.repeat(<<0xff>>, 6) |> bit_array.concat(),
+  ]
+  |> pad_chunk_test_helper
+}
+
+fn pad_chunk_test_helper(tests: List(BitArray)) {
+  case tests {
+    [first, ..rest] -> {
+      let compiler = compiler.new()
+      bytes_tree.byte_size(
+        {
+          compiler.Compiler(
+            ..compiler,
+            data: compiler.data |> bytes_tree.append(first),
+          )
+          |> chunk.pad_chunk()
+        }.data,
+      )
+      % 4
+      |> should.equal(0)
+      pad_chunk_test_helper(rest)
+    }
+    _ -> Nil
+  }
+}

@@ -3,13 +3,12 @@ import gleam/bit_array
 import gleam/bytes_tree
 import gleam/list
 
-pub fn compile_beam_header(compiler: compiler.Compiler) {
+pub fn compile_beam_header(compiler: compiler.Compiler) -> compiler.Compiler {
   write_string(compiler, "FOR1")
   |> write_string("BEAM")
 }
 
-// TODO: write tests for this function
-fn pad_chunk(compiler: compiler.Compiler) -> compiler.Compiler {
+pub fn pad_chunk(compiler: compiler.Compiler) -> compiler.Compiler {
   let times = case bytes_tree.byte_size(compiler.data) % 4 {
     0 -> 0
     rem -> 4 - rem
@@ -22,7 +21,7 @@ fn pad_chunk(compiler: compiler.Compiler) -> compiler.Compiler {
   )
 }
 
-fn write_string(
+pub fn write_string(
   compiler: compiler.Compiler,
   string: String,
 ) -> compiler.Compiler {
