@@ -1,5 +1,5 @@
 import ast
-import gleam/iterator
+import gleam/list
 import gleam/option
 import token
 
@@ -7,33 +7,17 @@ pub type Parser {
   Parser(tokens: List(token.TokenType))
 }
 
-pub fn parse(parser: Parser) -> iterator.Iterator(ast.Expr) {
+pub fn parse(parser: Parser) -> List(ast.Expr) {
   let #(_parser, exprs) = parse_exprs(parser, False)
   exprs
 }
 
-// TODO: handle getting the last parser accumulator in a better way
-// Maybe with map_fold?
-fn parse_exprs(
-  parser: Parser,
-  is_inner: Bool,
-) -> #(Parser, iterator.Iterator(ast.Expr)) {
-  let iter =
-    iterator.unfold(parser, fn(parser) {
-      case parse_expr(parser, is_inner) {
-        #(_parser, option.None) -> iterator.Done
-        #(parser, option.Some(expr)) -> iterator.Next(#(parser, expr), parser)
-      }
+fn parse_exprs(parser: Parser, is_inner: Bool) -> #(Parser, List(ast.Expr)) {
+  let #(parser, exprs) =
+    list.map_fold(parser.tokens, parser, fn(parser, _) {
+      parse_expr(parser, is_inner)
     })
-
-  let assert Ok(#(parser, _expr)) = iterator.last(iter)
-  #(
-    parser,
-    iterator.map(iter, fn(x) {
-      let #(_parser, expr) = x
-      expr
-    }),
-  )
+  #(parser, exprs |> option.values)
 }
 
 fn parse_expr(
@@ -45,7 +29,7 @@ fn parse_expr(
       case first {
         token.LParen -> {
           let #(parser, exprs) = advance(rest) |> parse_exprs(True)
-          #(parser, option.Some(ast.List(exprs |> iterator.to_list)))
+          #(parser, option.Some(ast.List(exprs)))
         }
         token.RParen ->
           case is_inner {

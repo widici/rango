@@ -1,5 +1,4 @@
 import ast
-import gleam/iterator
 import gleeunit/should
 import parser
 import token
@@ -64,6 +63,5 @@ pub fn int_arith_parse_test() {
 fn parse_test_helper(input: List(token.TokenType), output: List(ast.Expr)) {
   parser.Parser(input)
   |> parser.parse
-  |> iterator.to_list
   |> should.equal(output)
 }
