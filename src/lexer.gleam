@@ -24,21 +24,26 @@ fn lex_token(lexer: Lexer) -> #(Lexer, token.TokenType) {
     "" -> #(lexer, token.EOF)
     " " <> src | "\n" <> src | "\t" <> src ->
       advance(lexer, src, 1) |> lex_token
+    // Arthitmetic operators
     "+" <> src -> #(advance(lexer, src, 1), token.Op(token.Add))
     "-" <> src -> #(advance(lexer, src, 1), token.Op(token.Sub))
     "*" <> src -> #(advance(lexer, src, 1), token.Op(token.Mul))
     "/" <> src -> #(advance(lexer, src, 1), token.Op(token.Div))
+    // Comparison operators
     "==" <> src -> #(advance(lexer, src, 2), token.Op(token.EqEq))
     "!=" <> src -> #(advance(lexer, src, 2), token.Op(token.Ne))
     ">" <> src -> #(advance(lexer, src, 1), token.Op(token.Gt))
     "<" <> src -> #(advance(lexer, src, 1), token.Op(token.Lt))
     ">=" <> src -> #(advance(lexer, src, 2), token.Op(token.Ge))
     "<=" <> src -> #(advance(lexer, src, 2), token.Op(token.Le))
+    // Logical operators
     "and" <> src -> #(advance(lexer, src, 3), token.Op(token.And))
     "or" <> src -> #(advance(lexer, src, 2), token.Op(token.Or))
     "!" <> src -> #(advance(lexer, src, 1), token.Op(token.Not))
+    // Parantheses
     "(" <> src -> #(advance(lexer, src, 1), token.LParen)
     ")" <> src -> #(advance(lexer, src, 1), token.RParen)
+    // Booleans
     "True" <> src -> #(advance(lexer, src, 4), token.Atom(token.Bool(True)))
     "False" <> src -> #(advance(lexer, src, 5), token.Atom(token.Bool(False)))
     "\"" <> src -> advance(lexer, src, 1) |> lex_str("")
