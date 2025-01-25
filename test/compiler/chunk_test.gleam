@@ -1,5 +1,4 @@
 import compiler/chunk
-import compiler/compiler
 import gleam/bit_array
 import gleam/bytes_tree
 import gleam/list
@@ -18,16 +17,10 @@ pub fn pad_chunk_test() {
 fn pad_chunk_test_helper(tests: List(BitArray)) {
   case tests {
     [first, ..rest] -> {
-      let compiler = compiler.new()
-      bytes_tree.byte_size(
-        {
-          compiler.Compiler(
-            ..compiler,
-            data: compiler.data |> bytes_tree.append(first),
-          )
-          |> chunk.pad_chunk()
-        }.data,
-      )
+      bytes_tree.byte_size({
+        bytes_tree.from_bit_array(first)
+        |> chunk.pad_chunk()
+      })
       % 4
       |> should.equal(0)
       pad_chunk_test_helper(rest)

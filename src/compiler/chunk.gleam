@@ -7,10 +7,19 @@ import gleam/dict
 import gleam/list
 import gleam/string
 
-pub fn compile_beam_header(compiler: compiler.Compiler) -> compiler.Compiler {
-  write_string(compiler, "FOR1")
-  |> compile_atom_chunk()
-  |> write_string("BEAM")
+pub fn compile_beam_header(compiler: compiler.Compiler) -> bytes_tree.BytesTree {
+  compile_chunk("FOR1", compile_atom_chunk(compiler).1) |> append_name("BEAM")
+}
+
+fn compile_chunk(
+  name: String,
+  data: bytes_tree.BytesTree,
+) -> bytes_tree.BytesTree {
+  bytes_tree.new()
+  |> append_name(name)
+  |> bytes_tree.append(<<bytes_tree.byte_size(data):big-size(32)>>)
+  |> bytes_tree.append_tree(data)
+  |> pad_chunk()
 }
 
 /// AtomChunk = <<
@@ -20,50 +29,46 @@ pub fn compile_beam_header(compiler: compiler.Compiler) -> compiler.Compiler {
 ///   [<<AtomLength:8, AtomName:AtomLength/unit:8>> || repeat NumberOfAtoms],
 ///   Padding4:0..3/unit:8
 /// >>
-fn compile_atom_chunk(compiler: compiler.Compiler) -> compiler.Compiler {
-  let chunk = bytes_tree.new()
+fn compile_atom_chunk(
+  compiler: compiler.Compiler,
+) -> #(compiler.Compiler, bytes_tree.BytesTree) {
   // TODO: Is this corret for 32-bits? Needs to be uints?
-  bytes_tree.append(chunk, <<dict.size(compiler.atoms):big-size(32)>>)
-  compiler.atoms
-  |> dict.keys()
-  |> list.map(fn(x) {
-    [<<string.length(x):big-size(8)>>, bit_array.from_string(x)]
-  })
-  |> list.map(bit_array.concat)
-  |> bit_array.concat()
-  |> bytes_tree.append(chunk, _)
+  let data =
+    bytes_tree.append(bytes_tree.new(), <<
+      dict.size(compiler.atoms):big-size(32),
+    >>)
 
-  let compiler =
-    compiler.Compiler(
-      ..compiler,
-      data: compiler.data
-        |> bytes_tree.append_string("AtU8")
-        |> bytes_tree.append(<<bytes_tree.byte_size(chunk):big-size(32)>>)
-        |> bytes_tree.append_tree(chunk),
-    )
-  pad_chunk(compiler)
+  let data =
+    compiler.atoms
+    |> dict.keys()
+    |> list.map(fn(x) {
+      [<<string.length(x):big-size(8)>>, bit_array.from_string(x)]
+      |> bit_array.concat()
+    })
+    |> bit_array.concat()
+    |> bytes_tree.append(data, _)
+
+  #(compiler, compile_chunk("AtU8", data))
 }
 
 /// Pads the bytes to written compiler.data so that they are 4-byte aligned
-pub fn pad_chunk(compiler: compiler.Compiler) -> compiler.Compiler {
-  let times = case bytes_tree.byte_size(compiler.data) % 4 {
+pub fn pad_chunk(data: bytes_tree.BytesTree) -> bytes_tree.BytesTree {
+  let times = case bytes_tree.byte_size(data) % 4 {
     0 -> 0
     rem -> 4 - rem
   }
-  compiler.Compiler(
-    ..compiler,
-    data: list.repeat(<<0x00>>, times)
-      |> bit_array.concat()
-      |> bytes_tree.append(compiler.data, _),
-  )
+  list.repeat(<<0x00>>, times)
+  |> bit_array.concat()
+  |> bytes_tree.append(data, _)
 }
 
-pub fn write_string(
-  compiler: compiler.Compiler,
-  string: String,
-) -> compiler.Compiler {
-  compiler.Compiler(
-    ..compiler,
-    data: compiler.data |> bytes_tree.append_string(string),
-  )
+/// Utility function for writting chunk names
+/// ### Safety
+/// Will panic if name isn't 2 bytes long
+pub fn append_name(
+  data: bytes_tree.BytesTree,
+  name: String,
+) -> bytes_tree.BytesTree {
+  let assert 4 = string.byte_size(name)
+  bytes_tree.append_string(data, name)
 }
