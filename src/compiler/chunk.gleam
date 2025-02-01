@@ -1,5 +1,3 @@
-// TODO: Clean up compile_atom_chunk, replace some compiler.Compiler w/ bytes_tree.BytesTree?, add compile_chunk fn?
-
 import compiler/compiler
 import gleam/bit_array
 import gleam/bytes_tree
@@ -7,8 +5,23 @@ import gleam/dict
 import gleam/list
 import gleam/string
 
+/// BEAMHeader = <<
+///   IffHeader:4/unit:8 = "FOR1",
+///   Size:32/big,                  // big endian, how many more bytes are there
+///   FormType:4/unit:8 = "BEAM"
+/// >>
 pub fn compile_beam_header(compiler: compiler.Compiler) -> bytes_tree.BytesTree {
-  compile_chunk("FOR1", compile_atom_chunk(compiler).1) |> append_name("BEAM")
+  let chunks =
+    [compile_atom_chunk]
+    |> list.fold(#(compiler, bytes_tree.new()), fn(prev, func) {
+      let res = func(prev.0)
+      #(res.0, bytes_tree.append_tree(prev.1, res.1))
+    })
+  bytes_tree.new()
+  |> append_name("FOR1")
+  |> bytes_tree.append(<<bytes_tree.byte_size(chunks.1):big-size(32)>>)
+  |> append_name("BEAM")
+  |> bytes_tree.append_tree(chunks.1)
 }
 
 fn compile_chunk(

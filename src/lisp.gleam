@@ -1,3 +1,4 @@
+import compiler/compiler
 import gleam/erlang
 import gleam/io
 import gleam/iterator
@@ -11,4 +12,6 @@ pub fn main() {
   tokens |> io.debug
   let ast = parser.Parser(tokens) |> parser.parse
   ast |> io.debug
+  let compiler = compiler.new() |> compiler.compile_exprs(ast)
+  compiler |> io.debug
 }

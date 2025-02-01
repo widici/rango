@@ -36,7 +36,7 @@ fn append_arg(compiler: Compiler, bits: BitArray) -> Compiler {
   Compiler(..compiler, data: bytes_tree.append(compiler.data, bits))
 }
 
-fn compile_exprs(compiler: Compiler, exprs: List(ast.Expr)) -> Compiler {
+pub fn compile_exprs(compiler: Compiler, exprs: List(ast.Expr)) -> Compiler {
   case exprs {
     [first, ..rest] -> {
       let compiler = case first {
@@ -139,8 +139,4 @@ pub fn resolve_func_id(
   let #(compiler, module_id) = get_atom_id(compiler, module)
   let #(compiler, func_id) = get_atom_id(compiler, func)
   #(compiler, #(module_id, func_id, arity) |> dict.get(compiler.imports, _))
-}
-
-pub fn append_string(compiler: Compiler, string: String) -> Compiler {
-  Compiler(..compiler, data: bytes_tree.append_string(compiler.data, string))
 }
