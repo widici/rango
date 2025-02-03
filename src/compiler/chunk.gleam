@@ -10,7 +10,7 @@ import gleam/string
 ///   Size:32/big,                  // big endian, how many more bytes are there
 ///   FormType:4/unit:8 = "BEAM"
 /// >>
-pub fn compile_beam_header(compiler: compiler.Compiler) -> bytes_tree.BytesTree {
+pub fn compile_beam_module(compiler: compiler.Compiler) -> bytes_tree.BytesTree {
   let chunks =
     [compile_atom_chunk]
     |> list.fold(#(compiler, bytes_tree.new()), fn(prev, func) {
@@ -19,7 +19,8 @@ pub fn compile_beam_header(compiler: compiler.Compiler) -> bytes_tree.BytesTree 
     })
   bytes_tree.new()
   |> append_name("FOR1")
-  |> bytes_tree.append(<<bytes_tree.byte_size(chunks.1):big-size(32)>>)
+  // This 4 should probably not be here
+  |> bytes_tree.append(<<{ 4 + bytes_tree.byte_size(chunks.1) }:big-size(32)>>)
   |> append_name("BEAM")
   |> bytes_tree.append_tree(chunks.1)
 }
