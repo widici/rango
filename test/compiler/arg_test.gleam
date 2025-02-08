@@ -15,7 +15,7 @@ pub fn encode_arg_test() {
 fn encode_arg_test_helper(tests: List(#(arg.Tag, arg.OpCode, BitArray))) {
   case tests {
     [first, ..rest] -> {
-      arg.encode_arg(arg.int_tag(first.0), arg.int_opc(first.1))
+      arg.encode_arg(arg.new() |> arg.add_tag(first.0) |> arg.add_opc(first.1))
       |> should.equal(first.2)
       encode_arg_test_helper(rest)
     }

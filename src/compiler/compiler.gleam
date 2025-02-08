@@ -32,8 +32,11 @@ pub fn new() -> Compiler {
   )
 }
 
-fn append_arg(compiler: Compiler, bits: BitArray) -> Compiler {
-  Compiler(..compiler, data: bytes_tree.append(compiler.data, bits))
+fn append_arg(compiler: Compiler, arg: arg.Arg) -> Compiler {
+  Compiler(
+    ..compiler,
+    data: bytes_tree.append(compiler.data, arg |> arg.encode_arg()),
+  )
 }
 
 pub fn compile_exprs(compiler: Compiler, exprs: List(ast.Expr)) -> Compiler {
@@ -55,9 +58,14 @@ pub fn compile_exprs(compiler: Compiler, exprs: List(ast.Expr)) -> Compiler {
 /// Will output: {move,{integer,data},{x,stack_size}}
 fn compile_int(compiler: Compiler, data: String) -> Compiler {
   let assert Ok(data) = int.parse(data)
-  append_arg(compiler, <<arg.int_opc(arg.Move)>>)
-  |> append_arg(arg.encode_arg(arg.int_tag(arg.I), data))
-  |> append_arg(arg.encode_arg(arg.int_tag(arg.X), compiler.stack_size))
+
+  append_arg(compiler, arg.new() |> arg.add_opc(arg.Move))
+  |> append_arg(arg.new() |> arg.add_tag(arg.I) |> arg.int_opc(data))
+  |> append_arg(
+    arg.new()
+    |> arg.add_tag(arg.X)
+    |> arg.int_opc(compiler.stack_size),
+  )
 }
 
 fn compile_list(compiler: Compiler, list: List(ast.Expr)) {
@@ -82,14 +90,19 @@ fn compile_arth_expr(
   operands: List(ast.Expr),
 ) -> Compiler {
   let assert 2 = list.length(operands)
+
   let compiler =
     compile_exprs(compiler, operands)
-    |> append_arg(<<arg.int_opc(arg.GcBif2)>>)
+    |> append_arg(arg.new() |> arg.add_opc(arg.GcBif2))
     // A fail will throw an exception on error due to flag being 0
-    |> append_arg(arg.encode_arg(arg.int_tag(arg.F), 0))
-    |> append_arg(arg.encode_arg(arg.int_tag(arg.U), 2))
+    |> append_arg(arg.new() |> arg.add_tag(arg.F) |> arg.int_opc(0))
+    |> append_arg(
+      arg.new()
+      |> arg.add_tag(arg.U)
+      |> arg.int_opc(2),
+    )
 
-  let #(compiler, id) = case
+  let assert #(compiler, Ok(id)) =
     resolve_func_id(
       compiler,
       case operator {
@@ -102,16 +115,24 @@ fn compile_arth_expr(
       "erlang",
       2,
     )
-  {
-    #(compiler, Ok(id)) -> #(compiler, id)
-    _ -> panic
-  }
 
   let compiler =
-    append_arg(compiler, arg.encode_arg(arg.int_tag(arg.U), id))
-    |> append_arg(arg.encode_arg(arg.int_tag(arg.X), compiler.stack_size - 2))
-    |> append_arg(arg.encode_arg(arg.int_tag(arg.X), compiler.stack_size - 1))
-    |> append_arg(arg.encode_arg(arg.int_tag(arg.X), compiler.stack_size - 2))
+    append_arg(compiler, arg.new() |> arg.add_tag(arg.U) |> arg.int_opc(id))
+    |> append_arg(
+      arg.new()
+      |> arg.add_tag(arg.X)
+      |> arg.int_opc(compiler.stack_size - 2),
+    )
+    |> append_arg(
+      arg.new()
+      |> arg.add_tag(arg.X)
+      |> arg.int_opc(compiler.stack_size - 1),
+    )
+    |> append_arg(
+      arg.new()
+      |> arg.add_tag(arg.X)
+      |> arg.int_opc(compiler.stack_size - 2),
+    )
   Compiler(..compiler, stack_size: compiler.stack_size - 2)
 }
 
