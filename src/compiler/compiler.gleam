@@ -58,7 +58,6 @@ pub fn compile_exprs(compiler: Compiler, exprs: List(ast.Expr)) -> Compiler {
 /// Will output: {move,{integer,data},{x,stack_size}}
 fn compile_int(compiler: Compiler, data: String) -> Compiler {
   let assert Ok(data) = int.parse(data)
-
   append_arg(compiler, arg.new() |> arg.add_opc(arg.Move))
   |> append_arg(arg.new() |> arg.add_tag(arg.I) |> arg.int_opc(data))
   |> append_arg(

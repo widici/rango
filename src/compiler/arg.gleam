@@ -1,4 +1,3 @@
-// TODO: see if everything is necesary, clean up boilerplate, etc.
 import gleam/int
 import gleam/option
 
@@ -29,7 +28,7 @@ pub fn new() -> Arg {
   Arg(tag: option.None, opcode: option.None)
 }
 
-/// Changes tag in arg to the Int that is used to identify it
+/// Sets tag in arg to the Int used for identifying the specific tag bytecode
 pub fn add_tag(arg: Arg, tag: Tag) -> Arg {
   Arg(
     ..arg,
@@ -42,7 +41,7 @@ pub fn add_tag(arg: Arg, tag: Tag) -> Arg {
   )
 }
 
-// Changes opcode in arg to the Int that is used to identify it
+/// Sets tag in arg to the Int used for identifying the specific opcode bytecode
 pub fn add_opc(arg: Arg, opcode: OpCode) -> Arg {
   Arg(
     ..arg,
@@ -73,6 +72,8 @@ pub fn encode_arg(arg: Arg) -> BitArray {
   }
 }
 
+/// Encodes arg terms when both terms are present based on BEAM:s compact term encoding
+/// See beam_asm:encode/2 for more info
 fn compact_term_encode(tag: Int, opcode: Int) -> BitArray {
   case opcode {
     n if n < 0 -> panic
