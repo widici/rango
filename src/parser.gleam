@@ -27,6 +27,10 @@ fn parse_expr(
   case parser.tokens {
     [first, ..rest] ->
       case first {
+        token.KeyWord(keyword) -> #(
+          advance(rest),
+          option.Some(ast.KeyWord(keyword)),
+        )
         token.LParen -> {
           let #(parser, exprs) = advance(rest) |> parse_exprs(True)
           #(parser, option.Some(ast.List(exprs)))

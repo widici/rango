@@ -3,6 +3,7 @@ pub type TokenType {
   RParen
   Op(Op)
   Atom(Atom)
+  KeyWord(KeyWord)
   EOF
 }
 
@@ -37,7 +38,11 @@ pub type Op {
 }
 
 pub type Atom {
-  Int(String)
+  Int(Int)
   Str(String)
   Bool(Bool)
+}
+
+pub type KeyWord {
+  Use
 }

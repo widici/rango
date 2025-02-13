@@ -7,18 +7,18 @@ pub fn int_arith_lex_test() {
   lex_test_helper("(+ 1 1)", [
     token.LParen,
     token.Op(token.Add),
-    token.Atom(token.Int("1")),
-    token.Atom(token.Int("1")),
+    token.Atom(token.Int(1)),
+    token.Atom(token.Int(1)),
     token.RParen,
   ])
   lex_test_helper("(* 2 (+ 1 1))", [
     token.LParen,
     token.Op(token.Mul),
-    token.Atom(token.Int("2")),
+    token.Atom(token.Int(2)),
     token.LParen,
     token.Op(token.Add),
-    token.Atom(token.Int("1")),
-    token.Atom(token.Int("1")),
+    token.Atom(token.Int(1)),
+    token.Atom(token.Int(1)),
     token.RParen,
     token.RParen,
   ])
@@ -27,11 +27,11 @@ pub fn int_arith_lex_test() {
     token.Op(token.Add),
     token.LParen,
     token.Op(token.Div),
-    token.Atom(token.Int("2")),
+    token.Atom(token.Int(2)),
     token.LParen,
     token.Op(token.Sub),
-    token.Atom(token.Int("321")),
-    token.Atom(token.Int("9")),
+    token.Atom(token.Int(321)),
+    token.Atom(token.Int(9)),
     token.RParen,
     token.RParen,
     token.RParen,
@@ -49,7 +49,7 @@ pub fn str_lex_test() {
     token.LParen,
     token.Op(token.Add),
     token.Atom(token.Str("example str")),
-    token.Atom(token.Int("99")),
+    token.Atom(token.Int(99)),
     token.RParen,
   ])
 }

@@ -2,7 +2,6 @@ import ast
 import compiler/arg
 import gleam/bytes_tree
 import gleam/dict
-import gleam/int
 import gleam/list
 import token
 
@@ -64,8 +63,7 @@ pub fn compile_exprs(compiler: Compiler, exprs: List(ast.Expr)) -> Compiler {
 
 /// Compiles an integer expression to beam instructions
 /// Will output: {move,{integer,data},{x,stack_size}}
-fn compile_int(compiler: Compiler, data: String) -> Compiler {
-  let assert Ok(data) = int.parse(data)
+fn compile_int(compiler: Compiler, data: Int) -> Compiler {
   append_arg(compiler, arg.new() |> arg.add_opc(arg.Move))
   |> append_arg(arg.new() |> arg.add_tag(arg.I) |> arg.int_opc(data))
   |> append_arg(
@@ -80,11 +78,21 @@ fn compile_list(compiler: Compiler, list: List(ast.Expr)) {
     [first, ..rest] -> {
       case first {
         ast.Op(operator) -> compile_arth_expr(compiler, operator, rest)
+        ast.KeyWord(keyword) ->
+          case keyword {
+            token.Use -> compile_use_expr(compiler, rest)
+          }
         _ -> panic
       }
     }
     [] -> panic
   }
+}
+
+fn compile_use_expr(compiler: Compiler, operands: List(ast.Expr)) -> Compiler {
+  let assert 3 = list.length(operands)
+  let assert [ast.Str(module), ast.Str(name), ast.Int(arity)] = operands
+  insert_func_id(compiler, ForeignFunc(module, name, arity))
 }
 
 /// Compiles arithmetic expressions to beam instructions
@@ -97,7 +105,6 @@ fn compile_arth_expr(
   operands: List(ast.Expr),
 ) -> Compiler {
   let assert 2 = list.length(operands)
-
   let compiler =
     compile_exprs(compiler, operands)
     |> append_arg(arg.new() |> arg.add_opc(arg.GcBif2))

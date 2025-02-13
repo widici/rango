@@ -1,3 +1,4 @@
+import gleam/int
 import gleam/iterator
 import gleam/regex
 import gleam/string
@@ -46,6 +47,8 @@ fn lex_token(lexer: Lexer) -> #(Lexer, token.TokenType) {
     // Booleans
     "True" <> src -> #(advance(lexer, src, 4), token.Atom(token.Bool(True)))
     "False" <> src -> #(advance(lexer, src, 5), token.Atom(token.Bool(False)))
+    // Keywords
+    "use" <> src -> #(advance(lexer, src, 6), token.KeyWord(token.Use))
     "\"" <> src -> advance(lexer, src, 1) |> lex_str("")
     _ -> {
       lex_int(lexer, "")
@@ -58,13 +61,19 @@ fn lex_int(lexer: Lexer, contents: String) -> #(Lexer, token.TokenType) {
     Error(_) ->
       case string.is_empty(contents) {
         True -> #(lexer, token.EOF)
-        False -> #(lexer, token.Atom(token.Int(contents)))
+        False -> {
+          let assert Ok(data) = int.parse(contents)
+          #(lexer, token.Atom(token.Int(data)))
+        }
       }
     Ok(#(grapheme, rest)) -> {
       let assert Ok(re) = regex.from_string("-?\\d+")
       case regex.check(re, grapheme) {
         True -> lex_int(advance(lexer, rest, 1), contents <> grapheme)
-        False -> #(lexer, token.Atom(token.Int(contents)))
+        False -> {
+          let assert Ok(data) = int.parse(contents)
+          #(lexer, token.Atom(token.Int(data)))
+        }
       }
     }
   }
