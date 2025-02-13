@@ -6,10 +6,17 @@ import gleam/int
 import gleam/list
 import token
 
+/// Used for representing foreign Erlang functions
+/// In MFA-notation it whould be: module/name:arity
+pub type ForeignFunc {
+  ForeignFunc(module: String, name: String, arity: Int)
+}
+
+/// Maps function signature of foreign function to its corresponding id
 pub type Imports =
   dict.Dict(#(Int, Int, Int), Int)
 
-/// Maps an atom represented by a string based on it's corresponding id
+/// Maps an atom represented by a string to its corresponding id
 /// Using a Dict here instead of a List should provide a better time-compexity in Gleam
 pub type Atoms =
   dict.Dict(String, Int)
@@ -30,6 +37,7 @@ pub fn new() -> Compiler {
     atoms: dict.new(),
     imports: dict.new(),
   )
+  |> insert_func_id(ForeignFunc("erlang", "+", 2))
 }
 
 fn append_arg(compiler: Compiler, arg: arg.Arg) -> Compiler {
@@ -104,15 +112,17 @@ fn compile_arth_expr(
   let assert #(compiler, Ok(id)) =
     resolve_func_id(
       compiler,
-      case operator {
-        token.Add -> "+"
-        token.Sub -> "-"
-        token.Mul -> "*"
-        // token.Div is not handled in the same way with gc_bif2 and thus isn't pattern-matched
-        _ -> panic
-      },
-      "erlang",
-      2,
+      ForeignFunc(
+        module: "erlang",
+        name: case operator {
+          token.Add -> "+"
+          token.Sub -> "-"
+          token.Mul -> "*"
+          // token.Div is not handled in the same way with gc_bif2 and thus isn't pattern-matched
+          _ -> panic
+        },
+        arity: 2,
+      ),
     )
 
   let compiler =
@@ -135,7 +145,7 @@ fn compile_arth_expr(
   Compiler(..compiler, stack_size: compiler.stack_size - 2)
 }
 
-pub fn get_atom_id(compiler: Compiler, name: String) -> #(Compiler, Int) {
+fn get_atom_id(compiler: Compiler, name: String) -> #(Compiler, Int) {
   case dict.has_key(compiler.atoms, name) {
     True -> {
       let assert Ok(res) = dict.get(compiler.atoms, name)
@@ -150,13 +160,32 @@ pub fn get_atom_id(compiler: Compiler, name: String) -> #(Compiler, Int) {
   }
 }
 
-pub fn resolve_func_id(
+fn resolve_func_sig(
   compiler: Compiler,
-  module: String,
-  func: String,
-  arity: Int,
+  func: ForeignFunc,
+) -> #(Compiler, #(Int, Int, Int)) {
+  let #(compiler, module_id) = get_atom_id(compiler, func.module)
+  let #(compiler, func_id) = get_atom_id(compiler, func.name)
+  #(compiler, #(module_id, func_id, func.arity))
+}
+
+fn resolve_func_id(
+  compiler: Compiler,
+  func: ForeignFunc,
 ) -> #(Compiler, Result(Int, Nil)) {
-  let #(compiler, module_id) = get_atom_id(compiler, module)
-  let #(compiler, func_id) = get_atom_id(compiler, func)
-  #(compiler, #(module_id, func_id, arity) |> dict.get(compiler.imports, _))
+  let #(compiler, signature) = resolve_func_sig(compiler, func)
+  #(compiler, signature |> dict.get(compiler.imports, _))
+}
+
+fn insert_func_id(compiler: Compiler, func: ForeignFunc) -> Compiler {
+  let #(compiler, signature) = resolve_func_sig(compiler, func)
+  let assert False = dict.has_key(compiler.imports, signature)
+  Compiler(
+    ..compiler,
+    imports: dict.insert(
+      compiler.imports,
+      signature,
+      compiler.imports |> dict.size(),
+    ),
+  )
 }
