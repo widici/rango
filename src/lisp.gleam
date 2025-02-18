@@ -1,17 +1,17 @@
+import argv
 import compiler/chunk
 import compiler/compiler
 import gleam/bit_array
 import gleam/bytes_tree
-import gleam/erlang
 import gleam/io
 import gleam/iterator
-import gleam/result
+import gleam/string
+import glint
 import lexer
 import parser
 import simplifile
 
-pub fn main() {
-  let src = erlang.get_line(">>> ") |> result.unwrap("")
+fn build(src: String) -> BitArray {
   let tokens = lexer.new(src) |> lexer.lex |> iterator.to_list
   tokens |> io.debug
   let ast = parser.Parser(tokens) |> parser.parse
@@ -21,6 +21,27 @@ pub fn main() {
   let beam_module =
     chunk.compile_beam_module(compiler) |> bytes_tree.to_bit_array()
   beam_module |> io.debug
+  beam_module
+}
+
+fn root_command() -> glint.Command(Nil) {
+  use <- glint.command_help(
+    "Compiles source-code into beam instruction bytecode",
+  )
+  use _, args, _ <- glint.command()
+  let assert [path, ..] = args
+  let assert Ok(src) = simplifile.read(path)
+  let beam_module = build(src)
   let assert True = beam_module |> bit_array.is_utf8()
-  let assert Ok(Nil) = simplifile.write_bits("test.beam", beam_module)
+  let assert [filename, _extension] = string.split(path, ".")
+  let assert Ok(Nil) = simplifile.write_bits(filename <> ".beam", beam_module)
+  Nil
+}
+
+pub fn main() {
+  glint.new()
+  |> glint.with_name("lisp")
+  |> glint.pretty_help(glint.default_pretty_help())
+  |> glint.add([], root_command())
+  |> glint.run(argv.load().arguments)
 }
