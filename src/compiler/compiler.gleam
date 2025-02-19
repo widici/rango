@@ -36,7 +36,6 @@ pub fn new() -> Compiler {
     atoms: dict.new(),
     imports: dict.new(),
   )
-  |> insert_func_id(ForeignFunc("erlang", "+", 2))
 }
 
 fn append_arg(compiler: Compiler, arg: arg.Arg) -> Compiler {

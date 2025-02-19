@@ -31,7 +31,9 @@ fn root_command() -> glint.Command(Nil) {
   use _, args, _ <- glint.command()
   let assert [path, ..] = args
   let assert Ok(src) = simplifile.read(path)
-  let beam_module = build(src)
+  let assert Ok(prelude) = simplifile.read("./prelude/prelude.lisp")
+  io.debug(prelude)
+  let beam_module = build(prelude <> "\n" <> src)
   let assert True = beam_module |> bit_array.is_utf8()
   let assert [filename, _extension] = string.split(path, ".")
   let assert Ok(Nil) = simplifile.write_bits(filename <> ".beam", beam_module)
