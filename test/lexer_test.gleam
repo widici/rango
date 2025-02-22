@@ -71,6 +71,6 @@ pub fn bool_lex_test() {
   ])
 }
 
-fn lex_test_helper(input: String, output: List(token.TokenType)) {
+fn lex_test_helper(input: String, output: List(token.Token)) {
   lexer.new(input) |> lexer.lex() |> iterator.to_list() |> should.equal(output)
 }

@@ -1,4 +1,4 @@
-pub type TokenType {
+pub type Token {
   LParen
   RParen
   Op(Op)

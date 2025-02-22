@@ -14,7 +14,7 @@ import simplifile
 fn build(src: String) -> BitArray {
   let tokens = lexer.new(src) |> lexer.lex |> iterator.to_list
   tokens |> io.debug
-  let ast = parser.Parser(tokens) |> parser.parse
+  let ast = tokens |> parser.parse()
   ast |> io.debug
   let compiler = compiler.new() |> compiler.compile_exprs(ast)
   compiler |> io.debug

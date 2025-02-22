@@ -12,7 +12,7 @@ pub fn new(src: String) -> Lexer {
   Lexer(src, pos: 0)
 }
 
-pub fn lex(lexer: Lexer) -> iterator.Iterator(token.TokenType) {
+pub fn lex(lexer: Lexer) -> iterator.Iterator(token.Token) {
   use lexer <- iterator.unfold(lexer)
   case lex_token(lexer) {
     #(_lexer, token.EOF) -> iterator.Done
@@ -20,7 +20,7 @@ pub fn lex(lexer: Lexer) -> iterator.Iterator(token.TokenType) {
   }
 }
 
-fn lex_token(lexer: Lexer) -> #(Lexer, token.TokenType) {
+fn lex_token(lexer: Lexer) -> #(Lexer, token.Token) {
   case lexer.src {
     "" -> #(lexer, token.EOF)
     " " <> src | "\n" <> src | "\t" <> src ->
@@ -56,7 +56,7 @@ fn lex_token(lexer: Lexer) -> #(Lexer, token.TokenType) {
   }
 }
 
-fn lex_int(lexer: Lexer, contents: String) -> #(Lexer, token.TokenType) {
+fn lex_int(lexer: Lexer, contents: String) -> #(Lexer, token.Token) {
   case string.pop_grapheme(lexer.src) {
     Error(_) ->
       case string.is_empty(contents) {
@@ -79,7 +79,7 @@ fn lex_int(lexer: Lexer, contents: String) -> #(Lexer, token.TokenType) {
   }
 }
 
-fn lex_str(lexer: Lexer, contents: String) -> #(Lexer, token.TokenType) {
+fn lex_str(lexer: Lexer, contents: String) -> #(Lexer, token.Token) {
   case lexer.src {
     "" -> panic
     // "" should be handeled as a error in the future

@@ -56,10 +56,29 @@ pub fn int_arith_parse_test() {
       ]),
     ]),
   ])
+
+  [
+    token.LParen,
+    token.Op(token.Mul),
+    token.LParen,
+    token.Op(token.Add),
+    token.Atom(token.Int(1)),
+    token.Atom(token.Int(1)),
+    token.RParen,
+    token.Atom(token.Int(2)),
+    token.RParen,
+  ]
+  |> parse_test_helper([
+    ast.List([
+      ast.Op(token.Mul),
+      ast.List([ast.Op(token.Add), ast.Int(1), ast.Int(1)]),
+      ast.Int(2),
+    ]),
+  ])
 }
 
-fn parse_test_helper(input: List(token.TokenType), output: List(ast.Expr)) {
-  parser.Parser(input)
-  |> parser.parse
+fn parse_test_helper(input: List(token.Token), output: List(ast.Expr)) {
+  input
+  |> parser.parse()
   |> should.equal(output)
 }

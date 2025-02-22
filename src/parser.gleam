@@ -1,63 +1,41 @@
-// TODO: Fix parsing lists for multi-line source-code
-
 import ast
 import gleam/list
-import gleam/option
 import token
 
-pub type Parser {
-  Parser(tokens: List(token.TokenType))
-}
-
-pub fn parse(parser: Parser) -> List(ast.Expr) {
-  let #(_parser, exprs) = parse_exprs(parser, False)
-  exprs
-}
-
-fn parse_exprs(parser: Parser, is_inner: Bool) -> #(Parser, List(ast.Expr)) {
-  let #(parser, exprs) =
-    list.map_fold(parser.tokens, parser, fn(parser, _) {
-      parse_expr(parser, is_inner)
-    })
-  #(parser, exprs |> option.values)
-}
-
-fn parse_expr(
-  parser: Parser,
-  is_inner: Bool,
-) -> #(Parser, option.Option(ast.Expr)) {
-  case parser.tokens {
-    [first, ..rest] ->
-      case first {
-        token.KeyWord(keyword) -> #(
-          advance(rest),
-          option.Some(ast.KeyWord(keyword)),
-        )
-        token.LParen -> {
-          let #(parser, exprs) = advance(rest) |> parse_exprs(True)
-          #(parser, option.Some(ast.List(exprs)))
-        }
-        token.RParen ->
-          case is_inner {
-            True -> #(advance(rest), option.None)
-            False -> advance(rest) |> parse_expr(False)
-          }
-        token.Atom(atom) -> #(
-          advance(rest),
-          option.Some(case atom {
-            token.Int(int) -> ast.Int(int)
-            token.Str(str) -> ast.Str(str)
-            token.Bool(bool) -> ast.Bool(bool)
-          }),
-        )
-        token.Op(op) -> #(advance(rest), option.Some(ast.Op(op)))
-        token.EOF -> #(parser, option.None)
-      }
-    [] -> #(parser, option.None)
+pub fn parse(tokens: List(token.Token)) -> List(ast.Expr) {
+  let #(expr, rest) = parse_expr(tokens)
+  case list.length(rest) {
+    0 -> [expr]
+    _ -> [expr, ..parse(rest)]
   }
 }
 
-// TODO: add offset in the future
-fn advance(rest: List(token.TokenType)) -> Parser {
-  Parser(tokens: rest)
+fn parse_expr(tokens: List(token.Token)) -> #(ast.Expr, List(token.Token)) {
+  case tokens {
+    [token.KeyWord(keyword), ..rest] -> #(ast.KeyWord(keyword), rest)
+    [token.Op(op), ..rest] -> #(ast.Op(op), rest)
+    [token.Atom(atom), ..rest] -> #(
+      case atom {
+        token.Int(int) -> ast.Int(int)
+        token.Str(str) -> ast.Str(str)
+        token.Bool(bool) -> ast.Bool(bool)
+      },
+      rest,
+    )
+    [token.LParen, ..rest] -> parse_list(rest, [])
+    _ -> panic
+  }
+}
+
+fn parse_list(
+  tokens: List(token.Token),
+  acc: List(ast.Expr),
+) -> #(ast.Expr, List(token.Token)) {
+  case tokens {
+    [token.RParen, ..rest] -> #(ast.List(acc |> list.reverse()), rest)
+    _ -> {
+      let #(expr, rest) = parse_expr(tokens)
+      parse_list(rest, [expr, ..acc])
+    }
+  }
 }
