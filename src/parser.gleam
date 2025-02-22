@@ -14,14 +14,9 @@ fn parse_expr(tokens: List(token.Token)) -> #(ast.Expr, List(token.Token)) {
   case tokens {
     [token.KeyWord(keyword), ..rest] -> #(ast.KeyWord(keyword), rest)
     [token.Op(op), ..rest] -> #(ast.Op(op), rest)
-    [token.Atom(atom), ..rest] -> #(
-      case atom {
-        token.Int(int) -> ast.Int(int)
-        token.Str(str) -> ast.Str(str)
-        token.Bool(bool) -> ast.Bool(bool)
-      },
-      rest,
-    )
+    [token.Int(int), ..rest] -> #(ast.Int(int), rest)
+    [token.Str(str), ..rest] -> #(ast.Str(str), rest)
+    [token.Bool(bool), ..rest] -> #(ast.Bool(bool), rest)
     [token.LParen, ..rest] -> parse_list(rest, [])
     _ -> panic
   }

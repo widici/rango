@@ -2,7 +2,9 @@ pub type Token {
   LParen
   RParen
   Op(Op)
-  Atom(Atom)
+  Int(Int)
+  Str(String)
+  Bool(Bool)
   KeyWord(KeyWord)
   EOF
 }
@@ -35,12 +37,6 @@ pub type Op {
   Or
   /// !
   Not
-}
-
-pub type Atom {
-  Int(Int)
-  Str(String)
-  Bool(Bool)
 }
 
 pub type KeyWord {

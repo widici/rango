@@ -11,25 +11,33 @@ gleam test  # Run the tests
 
 ### Lexer
 
-- [x] Lex Literals (Strings, Integers, Booleans, etc.)
-- [x] Lex basic operators (e.g. arithmetic operators)
+- [x] Lex literals (integers, strings, booleans)
+- [x] Lex operators (e.g. arithmetic operators, comparison operators, etc.) & parenthesis
+- [x] Lex special keywords (only use for now)
+- [ ] Lex spans in source-code for tokens
 
 ### Parser
 
-- [x] Parse basic expressions with operators via lists
+- [x] Parse literals, keywords & operators
+- [x] Parse lists
+- [ ] Improve parsing of use expressions, etc. to catch errors before compiling
+- [ ] Parse spans for expressions
 
 ### Compiler
 
 - [x] Encode arguments with tags and opcodes
-- [x] Compile Literals (Integers for now)
-- [x] Compile basic mathematical expressions (add, sub, mul for now)
-- [ ] Add Beam file header
-- [ ] Compile atom table chunk
-- [ ] Compile import & export table chunk
+- [x] Compile integers
+- [x] Compile mathematical expressions for operators using GcBif2 (add, sub, mul)
+- [x] Add Beam file header
+- [x] Compile atom table chunk
+- [x] Compile use expressions
+- [ ] Compile import table
+- [ ] Compile export table
 
 ### Miscellaneous
 
+- [x] Read source-code from file instead of basic REPL
+- [x] Read & use a basic prelude written in the language
 - [ ] Improve docs
 - [ ] Add better error handling
 - [ ] Add examples
-- [ ] Unit testing for the parts above

@@ -45,8 +45,8 @@ fn lex_token(lexer: Lexer) -> #(Lexer, token.Token) {
     "(" <> src -> #(advance(lexer, src, 1), token.LParen)
     ")" <> src -> #(advance(lexer, src, 1), token.RParen)
     // Booleans
-    "True" <> src -> #(advance(lexer, src, 4), token.Atom(token.Bool(True)))
-    "False" <> src -> #(advance(lexer, src, 5), token.Atom(token.Bool(False)))
+    "True" <> src -> #(advance(lexer, src, 4), token.Bool(True))
+    "False" <> src -> #(advance(lexer, src, 5), token.Bool(False))
     // Keywords
     "use" <> src -> #(advance(lexer, src, 6), token.KeyWord(token.Use))
     "\"" <> src -> advance(lexer, src, 1) |> lex_str("")
@@ -63,7 +63,7 @@ fn lex_int(lexer: Lexer, contents: String) -> #(Lexer, token.Token) {
         True -> #(lexer, token.EOF)
         False -> {
           let assert Ok(data) = int.parse(contents)
-          #(lexer, token.Atom(token.Int(data)))
+          #(lexer, token.Int(data))
         }
       }
     Ok(#(grapheme, rest)) -> {
@@ -72,7 +72,7 @@ fn lex_int(lexer: Lexer, contents: String) -> #(Lexer, token.Token) {
         True -> lex_int(advance(lexer, rest, 1), contents <> grapheme)
         False -> {
           let assert Ok(data) = int.parse(contents)
-          #(lexer, token.Atom(token.Int(data)))
+          #(lexer, token.Int(data))
         }
       }
     }
@@ -83,7 +83,7 @@ fn lex_str(lexer: Lexer, contents: String) -> #(Lexer, token.Token) {
   case lexer.src {
     "" -> panic
     // "" should be handeled as a error in the future
-    "\"" <> rest -> #(advance(lexer, rest, 1), token.Atom(token.Str(contents)))
+    "\"" <> rest -> #(advance(lexer, rest, 1), token.Str(contents))
     str -> {
       let assert Ok(#(grapheme, rest)) = string.pop_grapheme(str)
       lex_str(advance(lexer, rest, 1), contents <> grapheme)
