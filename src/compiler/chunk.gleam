@@ -12,7 +12,7 @@ import gleam/string
 /// >>
 pub fn compile_beam_module(compiler: compiler.Compiler) -> bytes_tree.BytesTree {
   let chunks =
-    [compile_atom_chunk]
+    [compile_atom_chunk, compile_import_chunk]
     |> list.fold(#(compiler, bytes_tree.new()), fn(prev, func) {
       let res = func(prev.0)
       #(res.0, bytes_tree.append_tree(prev.1, res.1))
@@ -48,21 +48,45 @@ fn compile_atom_chunk(
 ) -> #(compiler.Compiler, bytes_tree.BytesTree) {
   // TODO: Is this corret for 32-bits? Needs to be uints?
   let data =
-    bytes_tree.append(bytes_tree.new(), <<
-      dict.size(compiler.atoms):big-size(32),
-    >>)
-
-  let data =
-    compiler.atoms
-    |> dict.keys()
-    |> list.map(fn(x) {
-      [<<string.length(x):big-size(8)>>, bit_array.from_string(x)]
-      |> bit_array.concat()
-    })
-    |> bit_array.concat()
-    |> bytes_tree.append(data, _)
+    bytes_tree.from_bit_array(<<dict.size(compiler.atoms):big-size(32)>>)
+    |> bytes_tree.append(
+      compiler.atoms
+      |> dict.keys()
+      |> list.map(fn(x) {
+        <<string.length(x):big-size(8), bit_array.from_string(x):bits>>
+      })
+      |> bit_array.concat(),
+    )
 
   #(compiler, compile_chunk("AtU8", data))
+}
+
+/// ImportChunk = <<
+///   ChunkName:4/unit:8 = "ImpT",
+///   ChunkSize:32/big,
+///   ImportCount:32/big,
+///   [ << ModuleName:32/big,
+///        FunctionName:32/big,
+///        Arity:32/big
+///     >> || repeat ImportCount ],
+///   Padding4:0..3/unit:8
+/// >>
+fn compile_import_chunk(
+  compiler: compiler.Compiler,
+) -> #(compiler.Compiler, bytes_tree.BytesTree) {
+  let data =
+    bytes_tree.from_bit_array(<<dict.size(compiler.imports):big-size(32)>>)
+    |> bytes_tree.append(
+      compiler.imports
+      |> dict.keys()
+      |> list.map(fn(x) {
+        let #(module, name, arity) = x
+        <<module:big-size(32), name:big-size(32), arity:big-size(32)>>
+      })
+      |> bit_array.concat(),
+    )
+
+  #(compiler, compile_chunk("ImpT", data))
 }
 
 /// Pads the bytes to written compiler.data so that they are 4-byte aligned
