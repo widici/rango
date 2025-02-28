@@ -38,53 +38,45 @@ pub fn new() -> Compiler {
   )
 }
 
-fn append_arg(compiler: Compiler, arg: arg.Arg) -> Compiler {
-  Compiler(
-    ..compiler,
-    data: bytes_tree.append(compiler.data, arg |> arg.encode_arg()),
-  )
+pub fn compile_exprs(compiler: Compiler, exprs: List(ast.Expr)) -> Compiler {
+  let #(compiler, rest) = compile_expr(compiler, exprs)
+  case list.length(rest) {
+    0 -> compiler
+    _ -> compile_exprs(compiler, rest)
+  }
 }
 
-pub fn compile_exprs(compiler: Compiler, exprs: List(ast.Expr)) -> Compiler {
+fn compile_expr(
+  compiler: Compiler,
+  exprs: List(ast.Expr),
+) -> #(Compiler, List(ast.Expr)) {
   case exprs {
-    [first, ..rest] -> {
-      let compiler = case first {
-        ast.Int(data) -> compile_int(compiler, data)
-        ast.List(list) -> compile_list(compiler, list)
-        _ -> panic
-      }
-      Compiler(..compiler, stack_size: compiler.stack_size + 1)
-      |> compile_exprs(rest)
-    }
-    [] -> compiler
+    [ast.Int(data), ..rest] -> #(compile_int(compiler, data), rest)
+    [ast.List(list), ..rest] -> #(compile_list(compiler, list), rest)
+    _ -> panic
   }
 }
 
 /// Compiles an integer expression to beam instructions
 /// Will output: {move,{integer,data},{x,stack_size}}
 fn compile_int(compiler: Compiler, data: Int) -> Compiler {
-  append_arg(compiler, arg.new() |> arg.add_opc(arg.Move))
-  |> append_arg(arg.new() |> arg.add_tag(arg.I) |> arg.int_opc(data))
-  |> append_arg(
-    arg.new()
-    |> arg.add_tag(arg.X)
-    |> arg.int_opc(compiler.stack_size),
+  Compiler(
+    ..append_arg(compiler, arg.new() |> arg.add_opc(arg.Move))
+    |> append_arg(arg.new() |> arg.add_tag(arg.I) |> arg.int_opc(data))
+    |> append_arg(
+      arg.new()
+      |> arg.add_tag(arg.X)
+      |> arg.int_opc(compiler.stack_size),
+    ),
+    stack_size: compiler.stack_size + 1,
   )
 }
 
-fn compile_list(compiler: Compiler, list: List(ast.Expr)) {
+fn compile_list(compiler: Compiler, list: List(ast.Expr)) -> Compiler {
   case list {
-    [first, ..rest] -> {
-      case first {
-        ast.Op(operator) -> compile_arth_expr(compiler, operator, rest)
-        ast.KeyWord(keyword) ->
-          case keyword {
-            token.Use -> compile_use_expr(compiler, rest)
-          }
-        _ -> panic
-      }
-    }
-    [] -> panic
+    [ast.Op(operator), ..rest] -> compile_arth_expr(compiler, operator, rest)
+    [ast.KeyWord(token.Use), ..rest] -> compile_use_expr(compiler, rest)
+    _ -> panic
   }
 }
 
@@ -148,7 +140,14 @@ fn compile_arth_expr(
       |> arg.add_tag(arg.X)
       |> arg.int_opc(compiler.stack_size - 2),
     )
-  Compiler(..compiler, stack_size: compiler.stack_size - 2)
+  Compiler(..compiler, stack_size: compiler.stack_size - 1)
+}
+
+fn append_arg(compiler: Compiler, arg: arg.Arg) -> Compiler {
+  Compiler(
+    ..compiler,
+    data: bytes_tree.append(compiler.data, arg |> arg.encode_arg()),
+  )
 }
 
 fn get_atom_id(compiler: Compiler, name: String) -> #(Compiler, Int) {
