@@ -1,4 +1,5 @@
 import gleam/int
+import gleam/io
 import gleam/iterator
 import gleam/regex
 import gleam/string
@@ -44,14 +45,39 @@ fn lex_token(lexer: Lexer) -> #(Lexer, token.Token) {
     // Parantheses
     "(" <> src -> #(advance(lexer, src, 1), token.LParen)
     ")" <> src -> #(advance(lexer, src, 1), token.RParen)
+    // Square-brackets
+    "[" <> src -> #(advance(lexer, src, 1), token.LSquare)
+    "]" <> src -> #(advance(lexer, src, 1), token.RSquare)
     // Booleans
     "True" <> src -> #(advance(lexer, src, 4), token.Bool(True))
     "False" <> src -> #(advance(lexer, src, 5), token.Bool(False))
+    // Types
+    "Int" <> src -> #(advance(lexer, src, 3), token.Type(token.IntType))
+    "Str" <> src -> #(advance(lexer, src, 3), token.Type(token.StrType))
+    "Bool" <> src -> #(advance(lexer, src, 3), token.Type(token.BoolType))
     // Keywords
     "use" <> src -> #(advance(lexer, src, 6), token.KeyWord(token.Use))
+    "fn" <> src -> #(advance(lexer, src, 2), token.KeyWord(token.Func))
     "\"" <> src -> advance(lexer, src, 1) |> lex_str("")
     _ -> {
-      lex_int(lexer, "")
+      let assert Ok(#(grapheme, rest)) = string.pop_grapheme(lexer.src)
+      let assert Ok(re) = regex.from_string("-?\\d+")
+      case regex.check(re, grapheme) {
+        True -> lex_int(lexer, "")
+        False -> advance(lexer, rest, 1) |> lex_ident(grapheme)
+      }
+    }
+  }
+}
+
+fn lex_str(lexer: Lexer, contents: String) -> #(Lexer, token.Token) {
+  case lexer.src {
+    "" -> panic
+    // "" should be handeled as a error in the future
+    "\"" <> rest -> #(advance(lexer, rest, 1), token.Str(contents))
+    str -> {
+      let assert Ok(#(grapheme, rest)) = string.pop_grapheme(str)
+      lex_str(advance(lexer, rest, 1), contents <> grapheme)
     }
   }
 }
@@ -79,15 +105,10 @@ fn lex_int(lexer: Lexer, contents: String) -> #(Lexer, token.Token) {
   }
 }
 
-fn lex_str(lexer: Lexer, contents: String) -> #(Lexer, token.Token) {
-  case lexer.src {
-    "" -> panic
-    // "" should be handeled as a error in the future
-    "\"" <> rest -> #(advance(lexer, rest, 1), token.Str(contents))
-    str -> {
-      let assert Ok(#(grapheme, rest)) = string.pop_grapheme(str)
-      lex_str(advance(lexer, rest, 1), contents <> grapheme)
-    }
+fn lex_ident(lexer: Lexer, grapheme: String) -> #(Lexer, token.Token) {
+  case lex_token(lexer) {
+    #(lexer, token.Ident(ident)) -> #(lexer, token.Ident(grapheme <> ident))
+    _ -> #(lexer, token.Ident(grapheme))
   }
 }
 

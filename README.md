@@ -12,8 +12,10 @@ gleam test  # Run the tests
 ### Lexer
 
 - [x] Lex literals (integers, strings, booleans)
-- [x] Lex operators (e.g. arithmetic operators, comparison operators, etc.) & parenthesis
-- [x] Lex special keywords (only use for now)
+- [x] Lex operators (e.g. arithmetic operators, comparison operators, etc.)
+- [x] Lex parentheses & square brackets
+- [x] Lex special keywords
+- [x] Lex regular identifiers
 - [ ] Lex spans in source-code for tokens
 
 ### Parser
