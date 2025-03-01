@@ -1,7 +1,11 @@
 pub type Token {
+  /// (
   LParen
+  /// )
   RParen
+  /// [
   LSquare
+  /// ]
   RSquare
   Ident(String)
   Type(Type)
@@ -44,12 +48,17 @@ pub type Op {
 }
 
 pub type KeyWord {
+  /// use
   Use
+  /// fn
   Func
 }
 
 pub type Type {
+  /// Int
   IntType
+  /// Str
   StrType
+  /// Bool
   BoolType
 }
