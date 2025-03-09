@@ -1,3 +1,5 @@
+// TODO: Fix issues w/ lexing idents split w/ spaces, etc.
+
 import gleam/int
 import gleam/iterator
 import gleam/regex
