@@ -1,7 +1,6 @@
-// TODO: Fix issues w/ lexing idents split w/ spaces, etc.
-
 import gleam/int
-import gleam/iterator
+import gleam/list
+import gleam/option
 import gleam/regex
 import gleam/string
 import token
@@ -14,105 +13,120 @@ pub fn new(src: String) -> Lexer {
   Lexer(src, pos: 0)
 }
 
-pub fn lex(lexer: Lexer) -> iterator.Iterator(token.Token) {
-  use lexer <- iterator.unfold(lexer)
-  case lex_token(lexer) {
-    #(_lexer, token.EOF) -> iterator.Done
-    #(lexer, token) -> iterator.Next(token, lexer)
+pub fn lex(lexer: Lexer) -> List(token.Token) {
+  lex_(lexer) |> option.values()
+}
+
+fn lex_(lexer: Lexer) -> List(option.Option(token.Token)) {
+  let prev_len = string.length(lexer.src)
+  let #(token, rest) = lex_token(lexer.src)
+  let curr_len = string.length(rest)
+  case curr_len {
+    0 -> [token]
+    _ -> [
+      token,
+      ..lex_(Lexer(src: rest, pos: lexer.pos + { prev_len - curr_len }))
+    ]
   }
 }
 
-fn lex_token(lexer: Lexer) -> #(Lexer, token.Token) {
-  case lexer.src {
-    "" -> #(lexer, token.EOF)
-    " " <> src | "\n" <> src | "\t" <> src ->
-      advance(lexer, src, 1) |> lex_token
-    // Arthitmetic operators
-    "+" <> src -> #(advance(lexer, src, 1), token.Op(token.Add))
-    "-" <> src -> #(advance(lexer, src, 1), token.Op(token.Sub))
-    "*" <> src -> #(advance(lexer, src, 1), token.Op(token.Mul))
-    "/" <> src -> #(advance(lexer, src, 1), token.Op(token.Div))
+fn lex_token(src: String) -> #(option.Option(token.Token), String) {
+  case src {
+    " " <> rest | "\n" <> rest | "\t" <> rest -> #(option.None, rest)
+    "+" <> rest -> #(option.Some(token.Op(token.Add)), rest)
+    "-" <> rest -> #(option.Some(token.Op(token.Sub)), rest)
+    "*" <> rest -> #(option.Some(token.Op(token.Mul)), rest)
+    "/" <> rest -> #(option.Some(token.Op(token.Div)), rest)
     // Comparison operators
-    "==" <> src -> #(advance(lexer, src, 2), token.Op(token.EqEq))
-    "!=" <> src -> #(advance(lexer, src, 2), token.Op(token.Ne))
-    ">" <> src -> #(advance(lexer, src, 1), token.Op(token.Gt))
-    "<" <> src -> #(advance(lexer, src, 1), token.Op(token.Lt))
-    ">=" <> src -> #(advance(lexer, src, 2), token.Op(token.Ge))
-    "<=" <> src -> #(advance(lexer, src, 2), token.Op(token.Le))
+    "==" <> rest -> #(option.Some(token.Op(token.EqEq)), rest)
+    "!=" <> rest -> #(option.Some(token.Op(token.Ne)), rest)
+    ">" <> rest -> #(option.Some(token.Op(token.Gt)), rest)
+    "<" <> rest -> #(option.Some(token.Op(token.Lt)), rest)
+    ">=" <> rest -> #(option.Some(token.Op(token.Ge)), rest)
+    "<=" <> rest -> #(option.Some(token.Op(token.Le)), rest)
     // Logical operators
-    "and" <> src -> #(advance(lexer, src, 3), token.Op(token.And))
-    "or" <> src -> #(advance(lexer, src, 2), token.Op(token.Or))
-    "!" <> src -> #(advance(lexer, src, 1), token.Op(token.Not))
+    "and" <> rest -> #(option.Some(token.Op(token.And)), rest)
+    "or" <> rest -> #(option.Some(token.Op(token.Or)), rest)
+    "!" <> rest -> #(option.Some(token.Op(token.Not)), rest)
     // Parantheses
-    "(" <> src -> #(advance(lexer, src, 1), token.LParen)
-    ")" <> src -> #(advance(lexer, src, 1), token.RParen)
+    "(" <> rest -> #(option.Some(token.LParen), rest)
+    ")" <> rest -> #(option.Some(token.RParen), rest)
     // Square-brackets
-    "[" <> src -> #(advance(lexer, src, 1), token.LSquare)
-    "]" <> src -> #(advance(lexer, src, 1), token.RSquare)
+    "[" <> rest -> #(option.Some(token.LSquare), rest)
+    "]" <> rest -> #(option.Some(token.RSquare), rest)
     // Booleans
-    "True" <> src -> #(advance(lexer, src, 4), token.Bool(True))
-    "False" <> src -> #(advance(lexer, src, 5), token.Bool(False))
+    "True" <> rest -> #(option.Some(token.Bool(True)), rest)
+    "False" <> rest -> #(option.Some(token.Bool(False)), rest)
     // Types
-    "Int" <> src -> #(advance(lexer, src, 3), token.Type(token.IntType))
-    "Str" <> src -> #(advance(lexer, src, 3), token.Type(token.StrType))
-    "Bool" <> src -> #(advance(lexer, src, 3), token.Type(token.BoolType))
+    "Int" <> rest -> #(option.Some(token.Type(token.IntType)), rest)
+    "Str" <> rest -> #(option.Some(token.Type(token.StrType)), rest)
+    "Bool" <> rest -> #(option.Some(token.Type(token.BoolType)), rest)
     // Keywords
-    "use" <> src -> #(advance(lexer, src, 6), token.KeyWord(token.Use))
-    "fn" <> src -> #(advance(lexer, src, 2), token.KeyWord(token.Func))
-    "\"" <> src -> advance(lexer, src, 1) |> lex_str("")
+    "use" <> rest -> #(option.Some(token.KeyWord(token.Use)), rest)
+    "fn" <> rest -> #(option.Some(token.KeyWord(token.Func)), rest)
+    "\"" <> rest -> {
+      let #(token, rest) = lex_str(rest)
+      #(option.Some(token), rest)
+    }
     _ -> {
-      let assert Ok(#(grapheme, rest)) = string.pop_grapheme(lexer.src)
-      let assert Ok(re) = regex.from_string("-?\\d+")
-      case regex.check(re, grapheme) {
-        True -> lex_int(lexer, "")
-        False -> advance(lexer, rest, 1) |> lex_ident(grapheme)
-      }
+      let assert Ok(#(grapheme, _)) = string.pop_grapheme(src)
+      let assert Ok(func) =
+        [#("-?\\d+", lex_int), #("^[a-zA-Z_][a-zA-Z0-9_]*$", lex_ident)]
+        |> list.map(fn(x) {
+          case regex_validate(grapheme, x.0) {
+            True -> option.Some(x.1)
+            False -> option.None
+          }
+        })
+        |> option.values()
+        |> list.first()
+      let #(token, rest) = func(src)
+      #(option.Some(token), rest)
     }
   }
 }
 
-fn lex_str(lexer: Lexer, contents: String) -> #(Lexer, token.Token) {
-  case lexer.src {
-    "" -> panic
-    // "" should be handeled as a error in the future
-    "\"" <> rest -> #(advance(lexer, rest, 1), token.Str(contents))
-    str -> {
-      let assert Ok(#(grapheme, rest)) = string.pop_grapheme(str)
-      lex_str(advance(lexer, rest, 1), contents <> grapheme)
-    }
-  }
-}
-
-fn lex_int(lexer: Lexer, contents: String) -> #(Lexer, token.Token) {
-  case string.pop_grapheme(lexer.src) {
-    Error(_) ->
-      case string.is_empty(contents) {
-        True -> #(lexer, token.EOF)
-        False -> {
-          let assert Ok(data) = int.parse(contents)
-          #(lexer, token.Int(data))
-        }
-      }
+fn take_predicate(
+  src: String,
+  acc: String,
+  predicate: fn(String) -> Bool,
+) -> #(String, String) {
+  case string.pop_grapheme(src) {
     Ok(#(grapheme, rest)) -> {
-      let assert Ok(re) = regex.from_string("-?\\d+")
-      case regex.check(re, grapheme) {
-        True -> lex_int(advance(lexer, rest, 1), contents <> grapheme)
-        False -> {
-          let assert Ok(data) = int.parse(contents)
-          #(lexer, token.Int(data))
-        }
+      case predicate(grapheme) {
+        True -> take_predicate(rest, acc <> grapheme, predicate)
+        False -> #(acc, src)
       }
     }
+    Error(_) -> #(acc, "")
   }
 }
 
-fn lex_ident(lexer: Lexer, grapheme: String) -> #(Lexer, token.Token) {
-  case lex_token(lexer) {
-    #(lexer, token.Ident(ident)) -> #(lexer, token.Ident(grapheme <> ident))
-    _ -> #(lexer, token.Ident(grapheme))
-  }
+fn regex_validate(grapheme: String, re: String) -> Bool {
+  let assert Ok(re) = regex.from_string(re)
+  regex.check(re, grapheme)
 }
 
-fn advance(lexer: Lexer, src: String, offset: Int) -> Lexer {
-  Lexer(src, pos: lexer.pos + offset)
+fn lex_str(src: String) -> #(token.Token, String) {
+  let #(contents, rest) =
+    take_predicate(src, "", fn(grapheme) {
+      regex_validate(grapheme, "^[^\"]+$")
+    })
+  let assert Ok(#("\"", rest)) = string.pop_grapheme(rest)
+  #(token.Str(contents), rest)
+}
+
+fn lex_int(src: String) -> #(token.Token, String) {
+  let #(contents, rest) =
+    take_predicate(src, "", fn(grapheme) { regex_validate(grapheme, "-?\\d+") })
+  let assert Ok(contents) = int.parse(contents)
+  #(token.Int(contents), rest)
+}
+
+fn lex_ident(src: String) -> #(token.Token, String) {
+  let #(name, rest) =
+    take_predicate(src, "", fn(grapheme) {
+      regex_validate(grapheme, "^[a-zA-Z_][a-zA-Z0-9_]*$")
+    })
+  #(token.Ident(name), rest)
 }

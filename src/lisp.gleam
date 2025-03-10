@@ -4,7 +4,6 @@ import compiler/compiler
 import gleam/bit_array
 import gleam/bytes_tree
 import gleam/io
-import gleam/iterator
 import gleam/string
 import glint
 import lexer
@@ -12,7 +11,7 @@ import parser
 import simplifile
 
 fn build(src: String) -> BitArray {
-  let tokens = lexer.new(src) |> lexer.lex |> iterator.to_list
+  let tokens = lexer.new(src) |> lexer.lex
   tokens |> io.debug
   let ast = tokens |> parser.parse()
   ast |> io.debug
