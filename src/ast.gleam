@@ -8,6 +8,6 @@ pub type Expr {
   KeyWord(token.KeyWord)
   Ident(String)
   List(List(Expr))
-  Args(List(#(token.Type, Expr)))
+  Params(List(#(token.Type, Expr)))
   Type(token.Type)
 }

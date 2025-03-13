@@ -45,7 +45,7 @@ fn parse_args(
   acc: List(#(token.Type, ast.Expr)),
 ) -> #(ast.Expr, List(token.Token)) {
   case tokens {
-    [token.RSquare, ..rest] -> #(ast.Args(acc |> list.reverse()), rest)
+    [token.RSquare, ..rest] -> #(ast.Params(acc |> list.reverse()), rest)
     [token.Type(arg_type), ..rest] ->
       parse_args(rest, option.Some(arg_type), acc)
     _ -> {
