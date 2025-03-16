@@ -8,6 +8,9 @@ pub opaque type Arg {
 /// Represents OpCodes used for beam-vm bytecode
 pub type OpCode {
   Label
+  FuncInfo
+  IntCodeEnd
+  Return
   Move
   GcBif2
 }
@@ -18,6 +21,8 @@ pub type Tag {
   U
   /// Integer
   I
+  /// Atom
+  A
   /// X register
   X
   /// Label
@@ -35,6 +40,7 @@ pub fn add_tag(arg: Arg, tag: Tag) -> Arg {
     tag: option.Some(case tag {
       U -> 0
       I -> 1
+      A -> 2
       X -> 3
       F -> 5
     }),
@@ -47,6 +53,9 @@ pub fn add_opc(arg: Arg, opcode: OpCode) -> Arg {
     ..arg,
     opcode: option.Some(case opcode {
       Label -> 1
+      FuncInfo -> 2
+      IntCodeEnd -> 3
+      Return -> 19
       Move -> 64
       GcBif2 -> 125
     }),

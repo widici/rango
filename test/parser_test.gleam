@@ -108,6 +108,7 @@ pub fn parse_func_test() {
     token.Ident("f"),
     token.LSquare,
     token.RSquare,
+    token.Type(token.IntType),
     token.Int(0),
     token.RParen,
   ]
@@ -116,6 +117,7 @@ pub fn parse_func_test() {
       ast.KeyWord(token.Func),
       ast.Ident("f"),
       ast.Params([]),
+      ast.Type(token.IntType),
       ast.Int(0),
     ]),
   ])

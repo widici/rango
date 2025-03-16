@@ -15,6 +15,15 @@ pub type ForeignFunc {
 pub type Imports =
   dict.Dict(#(Int, Int, Int), Int)
 
+/// Used for representing the metadata (label & arity) of native compiled functions
+pub type CompiledFunc {
+  CompiledFunc(label: Int, arity: Int)
+}
+
+/// Maps the id of a compiled function to its metadata
+pub type Exports =
+  dict.Dict(Int, CompiledFunc)
+
 /// Maps an atom represented by a string to its corresponding id
 /// Using a Dict here instead of a List should provide a better time-compexity in Gleam
 pub type Atoms =
@@ -26,6 +35,8 @@ pub type Compiler {
     data: bytes_tree.BytesTree,
     atoms: Atoms,
     imports: Imports,
+    exports: Exports,
+    label_count: Int,
   )
 }
 
@@ -35,6 +46,8 @@ pub fn new() -> Compiler {
     data: bytes_tree.new(),
     atoms: dict.new(),
     imports: dict.new(),
+    exports: dict.new(),
+    label_count: 0,
   )
 }
 
@@ -61,9 +74,9 @@ fn compile_expr(
 /// Will output: {move,{integer,data},{x,stack_size}}
 fn compile_int(compiler: Compiler, data: Int) -> Compiler {
   Compiler(
-    ..append_arg(compiler, arg.new() |> arg.add_opc(arg.Move))
-    |> append_arg(arg.new() |> arg.add_tag(arg.I) |> arg.int_opc(data))
-    |> append_arg(
+    ..add_arg(compiler, arg.new() |> arg.add_opc(arg.Move))
+    |> add_arg(arg.new() |> arg.add_tag(arg.I) |> arg.int_opc(data))
+    |> add_arg(
       arg.new()
       |> arg.add_tag(arg.X)
       |> arg.int_opc(compiler.stack_size),
@@ -75,19 +88,31 @@ fn compile_int(compiler: Compiler, data: Int) -> Compiler {
 fn compile_list(compiler: Compiler, list: List(ast.Expr)) -> Compiler {
   case list {
     [ast.Op(operator), ..rest] -> compile_arth_expr(compiler, operator, rest)
-    [ast.KeyWord(token.Use), ..rest] -> compile_use_expr(compiler, rest)
+    [ast.KeyWord(token.Use), ast.Str(module), ast.Str(name), ast.Int(arity)] ->
+      compile_use_expr(compiler, module, name, arity)
+    [
+      ast.KeyWord(token.Func),
+      ast.Ident(name),
+      ast.Params(params),
+      ast.Type(_ret_type),
+      ..body
+    ] -> compile_func_expr(compiler, name, params, body)
     _ -> panic
   }
 }
 
-fn compile_use_expr(compiler: Compiler, operands: List(ast.Expr)) -> Compiler {
-  let assert 3 = list.length(operands)
-  let assert [ast.Str(module), ast.Str(name), ast.Int(arity)] = operands
-  insert_func_id(compiler, ForeignFunc(module, name, arity))
+/// Inserts forein function's MFA to imports
+fn compile_use_expr(
+  compiler: Compiler,
+  module: String,
+  name: String,
+  arity: Int,
+) -> Compiler {
+  add_func_id(compiler, ForeignFunc(module, name, arity))
 }
 
 /// Compiles arithmetic expressions to beam instructions
-/// Will output: {gc_bif,'operator',{f,0},2,[{x,stack_size},{x,stack_size+1},{x,stack_size}]}
+/// Will output: {gc_bif,operator,{f,0},2,[{x,stack_size},{x,stack_size+1},{x,stack_size}]}
 /// ### Safety
 /// Can only handle two operands for now due to restrictions of the GcBif2 instruction
 fn compile_arth_expr(
@@ -98,10 +123,10 @@ fn compile_arth_expr(
   let assert 2 = list.length(operands)
   let compiler =
     compile_exprs(compiler, operands)
-    |> append_arg(arg.new() |> arg.add_opc(arg.GcBif2))
+    |> add_arg(arg.new() |> arg.add_opc(arg.GcBif2))
     // A fail will throw an exception on error due to flag being 0
-    |> append_arg(arg.new() |> arg.add_tag(arg.F) |> arg.int_opc(0))
-    |> append_arg(
+    |> add_arg(arg.new() |> arg.add_tag(arg.F) |> arg.int_opc(0))
+    |> add_arg(
       arg.new()
       |> arg.add_tag(arg.U)
       |> arg.int_opc(2),
@@ -124,18 +149,18 @@ fn compile_arth_expr(
     )
 
   let compiler =
-    append_arg(compiler, arg.new() |> arg.add_tag(arg.U) |> arg.int_opc(id))
-    |> append_arg(
+    add_arg(compiler, arg.new() |> arg.add_tag(arg.U) |> arg.int_opc(id))
+    |> add_arg(
       arg.new()
       |> arg.add_tag(arg.X)
       |> arg.int_opc(compiler.stack_size - 2),
     )
-    |> append_arg(
+    |> add_arg(
       arg.new()
       |> arg.add_tag(arg.X)
       |> arg.int_opc(compiler.stack_size - 1),
     )
-    |> append_arg(
+    |> add_arg(
       arg.new()
       |> arg.add_tag(arg.X)
       |> arg.int_opc(compiler.stack_size - 2),
@@ -143,7 +168,53 @@ fn compile_arth_expr(
   Compiler(..compiler, stack_size: compiler.stack_size - 1)
 }
 
-fn append_arg(compiler: Compiler, arg: arg.Arg) -> Compiler {
+// TODO: handle using params in func
+/// Compiles a function defintion expression to beam instructions
+/// Will output:
+/// {function, func-id, params-len, label_count+2}.
+///   {label,label_count+1}.
+///     {func_info,{atom,module-id},{atom,name-id}}.
+///   {label,label-count+2}.
+///     body
+///
+fn compile_func_expr(
+  compiler: Compiler,
+  name: String,
+  params: List(#(token.Type, ast.Expr)),
+  body: List(ast.Expr),
+) -> Compiler {
+  let #(compiler, module_id) = compiler |> get_atom_id("lisp")
+  let #(compiler, name_id) = compiler |> get_atom_id(name)
+
+  Compiler(
+    ..add_arg(compiler, arg.new() |> arg.add_opc(arg.Label))
+    |> add_arg(
+      arg.new() |> arg.add_tag(arg.U) |> arg.int_opc(compiler.label_count + 1),
+    )
+    |> add_arg(arg.new() |> arg.add_opc(arg.FuncInfo))
+    |> add_arg(arg.new() |> arg.add_tag(arg.A) |> arg.int_opc(module_id))
+    |> add_arg(arg.new() |> arg.add_tag(arg.A) |> arg.int_opc(name_id))
+    |> add_arg(
+      arg.new() |> arg.add_tag(arg.U) |> arg.int_opc(list.length(params)),
+    )
+    |> add_arg(arg.new() |> arg.add_opc(arg.Label))
+    |> add_arg(
+      arg.new() |> arg.add_tag(arg.U) |> arg.int_opc(compiler.label_count + 2),
+    ),
+    stack_size: list.length(params),
+    label_count: compiler.label_count + 2,
+    exports: compiler.exports
+      |> dict.insert(
+        name_id,
+        CompiledFunc(compiler.label_count + 2, list.length(params)),
+      ),
+  )
+  // TODO: check if this is valid for multiple exprs in body
+  |> compile_exprs(body)
+  |> add_arg(arg.new() |> arg.add_opc(arg.Return))
+}
+
+fn add_arg(compiler: Compiler, arg: arg.Arg) -> Compiler {
   Compiler(
     ..compiler,
     data: bytes_tree.append(compiler.data, arg |> arg.encode_arg()),
@@ -182,7 +253,7 @@ fn resolve_func_id(
   #(compiler, signature |> dict.get(compiler.imports, _))
 }
 
-fn insert_func_id(compiler: Compiler, func: ForeignFunc) -> Compiler {
+fn add_func_id(compiler: Compiler, func: ForeignFunc) -> Compiler {
   let #(compiler, signature) = resolve_func_sig(compiler, func)
   let assert False = dict.has_key(compiler.imports, signature)
   Compiler(
