@@ -33,8 +33,10 @@ gleam test  # Run the tests
 - [x] Add Beam file header
 - [x] Compile atom table chunk
 - [x] Compile use expressions
-- [ ] Compile import table
-- [ ] Compile export table
+- [x] Compile import table chunk
+- [x] Compile export table chunk
+- [ ] Compile string table chunk
+- [ ] Compile code chunk
 
 ### Miscellaneous
 

@@ -12,14 +12,13 @@ import gleam/string
 /// >>
 pub fn compile_beam_module(compiler: compiler.Compiler) -> bytes_tree.BytesTree {
   let chunks =
-    [compile_atom_chunk, compile_import_chunk]
+    [compile_atom_chunk, compile_import_chunk, compile_export_chunk]
     |> list.fold(#(compiler, bytes_tree.new()), fn(prev, func) {
       let res = func(prev.0)
       #(res.0, bytes_tree.append_tree(prev.1, res.1))
     })
   bytes_tree.new()
   |> append_name("FOR1")
-  // This 4 should probably not be here
   |> bytes_tree.append(<<{ 4 + bytes_tree.byte_size(chunks.1) }:big-size(32)>>)
   |> append_name("BEAM")
   |> bytes_tree.append_tree(chunks.1)
@@ -89,6 +88,33 @@ fn compile_import_chunk(
   #(compiler, compile_chunk("ImpT", data))
 }
 
+/// ExportChunk = <<
+///   ChunkName:4/unit:8 = "ExpT",
+///   ChunkSize:32/big,
+///   ExportCount:32/big,
+///   [ << FunctionName:32/big,
+///        Arity:32/big,
+///        Label:32/big
+///     >> || repeat ExportCount ],
+///   Padding4:0..3/unit:8
+/// >>
+fn compile_export_chunk(
+  compiler: compiler.Compiler,
+) -> #(compiler.Compiler, bytes_tree.BytesTree) {
+  let data =
+    bytes_tree.from_bit_array(<<dict.size(compiler.exports):big-size(32)>>)
+    |> bytes_tree.append(
+      compiler.exports
+      |> dict.to_list()
+      |> list.map(fn(x) {
+        let #(name, compiler.CompiledFunc(label, arity)) = x
+        <<name:big-size(32), arity:big-size(32), label:big-size(32)>>
+      })
+      |> bit_array.concat(),
+    )
+  #(compiler, compile_chunk("ExpT", data))
+}
+
 /// Pads the bytes to written compiler.data so that they are 4-byte aligned
 pub fn pad_chunk(data: bytes_tree.BytesTree) -> bytes_tree.BytesTree {
   let times = case bytes_tree.byte_size(data) % 4 {
@@ -102,7 +128,7 @@ pub fn pad_chunk(data: bytes_tree.BytesTree) -> bytes_tree.BytesTree {
 
 /// Utility function for writting chunk names
 /// ### Safety
-/// Will panic if name isn't 2 bytes long
+/// Will panic if name isn't 4 bytes long
 pub fn append_name(
   data: bytes_tree.BytesTree,
   name: String,
