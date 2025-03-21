@@ -12,7 +12,12 @@ import gleam/string
 /// >>
 pub fn compile_beam_module(compiler: compiler.Compiler) -> bytes_tree.BytesTree {
   let chunks =
-    [compile_atom_chunk, compile_import_chunk, compile_export_chunk]
+    [
+      compile_atom_chunk,
+      compile_import_chunk,
+      compile_export_chunk,
+      compile_string_chunk,
+    ]
     |> list.fold(#(compiler, bytes_tree.new()), fn(prev, func) {
       let res = func(prev.0)
       #(res.0, bytes_tree.append_tree(prev.1, res.1))
@@ -113,6 +118,19 @@ fn compile_export_chunk(
       |> bit_array.concat(),
     )
   #(compiler, compile_chunk("ExpT", data))
+}
+
+/// StringChunk = <<
+///   ChunkName:4/unit:8 = "StrT",
+///   ChunkSize:32/big, Data:ChunkSize/binary,
+///   Padding4:0..3/unit:8
+/// >>
+/// ### Important
+/// String chunk is currently unused and only implemented to fill beam requirements
+fn compile_string_chunk(
+  compiler: compiler.Compiler,
+) -> #(compiler.Compiler, bytes_tree.BytesTree) {
+  #(compiler, compile_chunk("StrT", bytes_tree.new()))
 }
 
 /// Pads the bytes to written compiler.data so that they are 4-byte aligned
