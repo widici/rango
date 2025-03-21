@@ -1,3 +1,4 @@
+import compiler/arg
 import compiler/compiler
 import gleam/bit_array
 import gleam/bytes_tree
@@ -13,10 +14,11 @@ import gleam/string
 pub fn compile_beam_module(compiler: compiler.Compiler) -> bytes_tree.BytesTree {
   let chunks =
     [
-      compile_atom_chunk,
       compile_import_chunk,
+      compile_code_chunk,
       compile_export_chunk,
       compile_string_chunk,
+      compile_atom_chunk,
     ]
     |> list.fold(#(compiler, bytes_tree.new()), fn(prev, func) {
       let res = func(prev.0)
@@ -56,9 +58,7 @@ fn compile_atom_chunk(
     |> bytes_tree.append(
       compiler.atoms
       |> dict.keys()
-      |> list.map(fn(x) {
-        <<string.length(x):big-size(8), bit_array.from_string(x):bits>>
-      })
+      |> list.map(fn(x) { <<string.length(x):big-size(8), x:utf8>> })
       |> bit_array.concat(),
     )
 
@@ -131,6 +131,37 @@ fn compile_string_chunk(
   compiler: compiler.Compiler,
 ) -> #(compiler.Compiler, bytes_tree.BytesTree) {
   #(compiler, compile_chunk("StrT", bytes_tree.new()))
+}
+
+// CodeChunk = <<
+//   ChunkName:4/unit:8 = "Code",
+//   ChunkSize:32/big,
+//   SubSize:32/big,
+//   InstructionSet:32/big,        % Must match code version in the emulator
+//   OpcodeMax:32/big,
+//   LabelCount:32/big,
+//   FunctionCount:32/big,
+//   Code:(ChunkSize-SubSize)/binary,  % all remaining data
+//   Padding4:0..3/unit:8
+// >>
+fn compile_code_chunk(
+  compiler: compiler.Compiler,
+) -> #(compiler.Compiler, bytes_tree.BytesTree) {
+  let sub_size = 16
+  let instruction_set = 0
+  let opcode_max = 169
+  let compiler =
+    compiler |> compiler.add_arg(arg.new() |> arg.add_opc(arg.IntCodeEnd))
+  let data =
+    bytes_tree.from_bit_array(<<
+      sub_size:big-size(32),
+      instruction_set:big-size(32),
+      opcode_max:big-size(32),
+      compiler.label_count:big-size(32),
+      dict.size(compiler.exports):big-size(32),
+    >>)
+    |> bytes_tree.append_tree(compiler.data)
+  #(compiler, compile_chunk("Code", data))
 }
 
 /// Pads the bytes to written compiler.data so that they are 4-byte aligned

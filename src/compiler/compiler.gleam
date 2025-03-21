@@ -214,7 +214,7 @@ fn compile_func_expr(
   |> add_arg(arg.new() |> arg.add_opc(arg.Return))
 }
 
-fn add_arg(compiler: Compiler, arg: arg.Arg) -> Compiler {
+pub fn add_arg(compiler: Compiler, arg: arg.Arg) -> Compiler {
   Compiler(
     ..compiler,
     data: bytes_tree.append(compiler.data, arg |> arg.encode_arg()),
