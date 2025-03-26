@@ -1,7 +1,6 @@
 import argv
 import compiler/chunk
 import compiler/compiler
-import gleam/bit_array
 import gleam/bytes_tree
 import gleam/io
 import gleam/string
@@ -10,12 +9,12 @@ import lexer
 import parser
 import simplifile
 
-fn build(src: String) -> BitArray {
+fn build(src: String, module: String) -> BitArray {
   let tokens = lexer.new(src) |> lexer.lex
   tokens |> io.debug
   let ast = tokens |> parser.parse()
   ast |> io.debug
-  let compiler = compiler.new() |> compiler.compile_exprs(ast)
+  let compiler = compiler.new(module) |> compiler.compile_exprs(ast)
   compiler |> io.debug
   let beam_module =
     chunk.compile_beam_module(compiler) |> bytes_tree.to_bit_array()
@@ -32,9 +31,9 @@ fn root_command() -> glint.Command(Nil) {
   let assert Ok(src) = simplifile.read(path)
   let assert Ok(prelude) = simplifile.read("./prelude/prelude.lisp")
   io.debug(prelude)
-  let beam_module = build(prelude <> "\n" <> src)
-  //let assert True = beam_module |> bit_array.is_utf8()
   let assert [filename, _extension] = string.split(path, ".")
+  let beam_module = build(prelude <> "\n" <> src, filename)
+  //let assert True = beam_module |> bit_array.is_utf8()
   let assert Ok(Nil) = simplifile.write_bits(filename <> ".beam", beam_module)
   Nil
 }

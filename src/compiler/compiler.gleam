@@ -37,18 +37,23 @@ pub type Compiler {
     imports: Imports,
     exports: Exports,
     label_count: Int,
+    module: String,
   )
 }
 
-pub fn new() -> Compiler {
-  Compiler(
-    stack_size: 1,
-    data: bytes_tree.new(),
-    atoms: dict.new(),
-    imports: dict.new(),
-    exports: dict.new(),
-    label_count: 0,
-  )
+pub fn new(module: String) -> Compiler {
+  let assert #(compiler, 0) =
+    Compiler(
+      stack_size: 1,
+      data: bytes_tree.new(),
+      atoms: dict.new(),
+      imports: dict.new(),
+      exports: dict.new(),
+      label_count: 0,
+      module:,
+    )
+    |> get_atom_id(module)
+  compiler
 }
 
 pub fn compile_exprs(compiler: Compiler, exprs: List(ast.Expr)) -> Compiler {
@@ -183,7 +188,7 @@ fn compile_func_expr(
   params: List(#(token.Type, ast.Expr)),
   body: List(ast.Expr),
 ) -> Compiler {
-  let #(compiler, module_id) = compiler |> get_atom_id("lisp")
+  let #(compiler, module_id) = compiler |> get_atom_id(compiler.module)
   let #(compiler, name_id) = compiler |> get_atom_id(name)
 
   Compiler(
@@ -241,8 +246,8 @@ fn resolve_func_sig(
   func: ForeignFunc,
 ) -> #(Compiler, #(Int, Int, Int)) {
   let #(compiler, module_id) = get_atom_id(compiler, func.module)
-  let #(compiler, func_id) = get_atom_id(compiler, func.name)
-  #(compiler, #(module_id, func_id, func.arity))
+  let #(compiler, name_id) = get_atom_id(compiler, func.name)
+  #(compiler, #(module_id, name_id, func.arity))
 }
 
 fn resolve_func_id(

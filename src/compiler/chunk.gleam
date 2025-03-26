@@ -3,6 +3,7 @@ import compiler/compiler
 import gleam/bit_array
 import gleam/bytes_tree
 import gleam/dict
+import gleam/int
 import gleam/list
 import gleam/string
 
@@ -42,29 +43,6 @@ fn compile_chunk(
   |> pad_chunk()
 }
 
-/// AtomChunk = <<
-///   ChunkName:4/unit:8 = "Atom" | "AtU8",
-///   ChunkSize:32/big,
-///   NumberOfAtoms:32/big,
-///   [<<AtomLength:8, AtomName:AtomLength/unit:8>> || repeat NumberOfAtoms],
-///   Padding4:0..3/unit:8
-/// >>
-fn compile_atom_chunk(
-  compiler: compiler.Compiler,
-) -> #(compiler.Compiler, bytes_tree.BytesTree) {
-  // TODO: Is this corret for 32-bits? Needs to be uints?
-  let data =
-    bytes_tree.from_bit_array(<<dict.size(compiler.atoms):big-size(32)>>)
-    |> bytes_tree.append(
-      compiler.atoms
-      |> dict.keys()
-      |> list.map(fn(x) { <<string.length(x):big-size(8), x:utf8>> })
-      |> bit_array.concat(),
-    )
-
-  #(compiler, compile_chunk("AtU8", data))
-}
-
 /// ImportChunk = <<
 ///   ChunkName:4/unit:8 = "ImpT",
 ///   ChunkSize:32/big,
@@ -91,6 +69,37 @@ fn compile_import_chunk(
     )
 
   #(compiler, compile_chunk("ImpT", data))
+}
+
+// CodeChunk = <<
+//   ChunkName:4/unit:8 = "Code",
+//   ChunkSize:32/big,
+//   SubSize:32/big,
+//   InstructionSet:32/big,        % Must match code version in the emulator
+//   OpcodeMax:32/big,
+//   LabelCount:32/big,
+//   FunctionCount:32/big,
+//   Code:(ChunkSize-SubSize)/binary,  % all remaining data
+//   Padding4:0..3/unit:8
+// >>
+fn compile_code_chunk(
+  compiler: compiler.Compiler,
+) -> #(compiler.Compiler, bytes_tree.BytesTree) {
+  let sub_size = 16
+  let instruction_set = 0
+  let opcode_max = 169
+  let compiler =
+    compiler |> compiler.add_arg(arg.new() |> arg.add_opc(arg.IntCodeEnd))
+  let data =
+    bytes_tree.from_bit_array(<<
+      sub_size:big-size(32),
+      instruction_set:big-size(32),
+      opcode_max:big-size(32),
+      compiler.label_count:big-size(32),
+      dict.size(compiler.exports):big-size(32),
+    >>)
+    |> bytes_tree.append_tree(compiler.data)
+  #(compiler, compile_chunk("Code", data))
 }
 
 /// ExportChunk = <<
@@ -133,35 +142,28 @@ fn compile_string_chunk(
   #(compiler, compile_chunk("StrT", bytes_tree.new()))
 }
 
-// CodeChunk = <<
-//   ChunkName:4/unit:8 = "Code",
-//   ChunkSize:32/big,
-//   SubSize:32/big,
-//   InstructionSet:32/big,        % Must match code version in the emulator
-//   OpcodeMax:32/big,
-//   LabelCount:32/big,
-//   FunctionCount:32/big,
-//   Code:(ChunkSize-SubSize)/binary,  % all remaining data
-//   Padding4:0..3/unit:8
-// >>
-fn compile_code_chunk(
+/// AtomChunk = <<
+///   ChunkName:4/unit:8 = "Atom" | "AtU8",
+///   ChunkSize:32/big,
+///   NumberOfAtoms:32/big,
+///   [<<AtomLength:8, AtomName:AtomLength/unit:8>> || repeat NumberOfAtoms],
+///   Padding4:0..3/unit:8
+/// >>
+fn compile_atom_chunk(
   compiler: compiler.Compiler,
 ) -> #(compiler.Compiler, bytes_tree.BytesTree) {
-  let sub_size = 16
-  let instruction_set = 0
-  let opcode_max = 169
-  let compiler =
-    compiler |> compiler.add_arg(arg.new() |> arg.add_opc(arg.IntCodeEnd))
+  // TODO: Is this corret for 32-bits? Needs to be uints?
   let data =
-    bytes_tree.from_bit_array(<<
-      sub_size:big-size(32),
-      instruction_set:big-size(32),
-      opcode_max:big-size(32),
-      compiler.label_count:big-size(32),
-      dict.size(compiler.exports):big-size(32),
-    >>)
-    |> bytes_tree.append_tree(compiler.data)
-  #(compiler, compile_chunk("Code", data))
+    bytes_tree.from_bit_array(<<dict.size(compiler.atoms):big-size(32)>>)
+    |> bytes_tree.append(
+      compiler.atoms
+      |> dict.to_list()
+      |> list.sort(fn(a, b) { int.compare(a.1, b.1) })
+      |> list.map(fn(x) { <<string.length(x.0):big-size(8), { x.0 }:utf8>> })
+      |> bit_array.concat(),
+    )
+
+  #(compiler, compile_chunk("AtU8", data))
 }
 
 /// Pads the bytes to written compiler.data so that they are 4-byte aligned
