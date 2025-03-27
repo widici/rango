@@ -85,6 +85,7 @@ fn compile_import_chunk(
 fn compile_code_chunk(
   compiler: compiler.Compiler,
 ) -> #(compiler.Compiler, bytes_tree.BytesTree) {
+  let labels = compiler.label_count + 1
   let sub_size = 16
   let instruction_set = 0
   let opcode_max = 169
@@ -95,7 +96,7 @@ fn compile_code_chunk(
       sub_size:big-size(32),
       instruction_set:big-size(32),
       opcode_max:big-size(32),
-      compiler.label_count:big-size(32),
+      labels:big-size(32),
       dict.size(compiler.exports):big-size(32),
     >>)
     |> bytes_tree.append_tree(compiler.data)
