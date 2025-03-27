@@ -42,7 +42,7 @@ pub type Compiler {
 }
 
 pub fn new(module: String) -> Compiler {
-  let assert #(compiler, 0) =
+  let assert #(compiler, 1) =
     Compiler(
       stack_size: 1,
       data: bytes_tree.new(),
@@ -235,7 +235,7 @@ fn get_atom_id(compiler: Compiler, name: String) -> #(Compiler, Int) {
     False ->
       Compiler(
         ..compiler,
-        atoms: dict.insert(compiler.atoms, name, dict.size(compiler.atoms)),
+        atoms: dict.insert(compiler.atoms, name, dict.size(compiler.atoms) + 1),
       )
       |> get_atom_id(name)
   }
