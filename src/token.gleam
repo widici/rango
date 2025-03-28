@@ -52,6 +52,8 @@ pub type KeyWord {
   Use
   /// fn
   Func
+  /// ret
+  Return
 }
 
 pub type Type {

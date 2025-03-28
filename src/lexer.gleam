@@ -64,6 +64,7 @@ fn lex_token(src: String) -> #(option.Option(token.Token), String) {
     // Keywords
     "use" <> rest -> #(option.Some(token.KeyWord(token.Use)), rest)
     "fn" <> rest -> #(option.Some(token.KeyWord(token.Func)), rest)
+    "ret" <> rest -> #(option.Some(token.KeyWord(token.Return)), rest)
     "\"" <> rest -> {
       let #(token, rest) = lex_str(rest)
       #(option.Some(token), rest)

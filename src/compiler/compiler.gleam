@@ -97,7 +97,7 @@ fn compile_int(compiler: Compiler, contents: Int) -> Compiler {
   )
 }
 
-/// Compiles a param used in function body  to beam instructions
+/// Compiles a param used in function body to beam instructions
 /// Will output: {move,{x,ident-index},{x,stack_size}}
 fn compile_var(compiler: Compiler, ident: ast.Expr) -> Compiler {
   case compiler.params |> dict.get(ident) {
@@ -123,18 +123,19 @@ fn compile_list(compiler: Compiler, list: List(ast.Expr)) -> Compiler {
     [ast.Op(operator), ..rest] -> compile_arth_expr(compiler, operator, rest)
     [ast.KeyWord(token.Use), ast.Str(module), ast.Str(name), ast.Int(arity)] ->
       compile_use_expr(compiler, module, name, arity)
+    [ast.KeyWord(token.Return), ..rest] -> compile_return_expr(compiler, rest)
     [
       ast.KeyWord(token.Func),
       ast.Ident(name),
       ast.Params(params),
       ast.Type(_ret_type),
-      ..body
+      ast.List(body),
     ] -> compile_func_expr(compiler, name, params, body)
     _ -> panic
   }
 }
 
-/// Inserts forein function's MFA to imports
+/// Inserts foreign function's MFA to imports
 fn compile_use_expr(
   compiler: Compiler,
   module: String,
@@ -142,6 +143,22 @@ fn compile_use_expr(
   arity: Int,
 ) -> Compiler {
   add_func_id(compiler, ForeignFunc(module, name, arity))
+}
+
+/// Returns evaluation of exprs from function
+/// Will output:
+/// {move,{x,stack_size-1},{x,0}}
+/// {return}
+fn compile_return_expr(compiler: Compiler, exprs: List(ast.Expr)) -> Compiler {
+  let compiler = compile_exprs(compiler, exprs)
+  add_arg(compiler, arg.new() |> arg.add_opc(arg.Move))
+  |> add_arg(
+    arg.new()
+    |> arg.add_tag(arg.X)
+    |> arg.int_opc(compiler.stack_size - 1),
+  )
+  |> add_arg(arg.new() |> arg.add_tag(arg.X) |> arg.int_opc(0))
+  |> add_arg(arg.new() |> arg.add_opc(arg.Return))
 }
 
 /// Compiles arithmetic expressions to beam instructions
@@ -201,7 +218,6 @@ fn compile_arth_expr(
   Compiler(..compiler, stack_size: compiler.stack_size - 1)
 }
 
-// TODO: handle using params in func
 /// Compiles a function defintion expression to beam instructions
 /// Will output:
 /// {function, func-id, params-len, label_count+2}.
@@ -219,45 +235,32 @@ fn compile_func_expr(
   let #(compiler, module_id) = compiler |> get_atom_id(compiler.module)
   let #(compiler, name_id) = compiler |> get_atom_id(name)
 
-  let compiler =
-    Compiler(
-      ..add_arg(compiler, arg.new() |> arg.add_opc(arg.Label))
-      |> add_arg(
-        arg.new() |> arg.add_tag(arg.U) |> arg.int_opc(compiler.label_count + 1),
-      )
-      |> add_arg(arg.new() |> arg.add_opc(arg.FuncInfo))
-      |> add_arg(arg.new() |> arg.add_tag(arg.A) |> arg.int_opc(module_id))
-      |> add_arg(arg.new() |> arg.add_tag(arg.A) |> arg.int_opc(name_id))
-      |> add_arg(
-        arg.new() |> arg.add_tag(arg.U) |> arg.int_opc(dict.size(params)),
-      )
-      |> add_arg(arg.new() |> arg.add_opc(arg.Label))
-      |> add_arg(
-        arg.new() |> arg.add_tag(arg.U) |> arg.int_opc(compiler.label_count + 2),
-      ),
-      stack_size: dict.size(params),
-      label_count: compiler.label_count + 2,
-      exports: compiler.exports
-        |> dict.insert(
-          name_id,
-          CompiledFunc(compiler.label_count + 2, dict.size(params)),
-        ),
-      params:,
+  Compiler(
+    ..add_arg(compiler, arg.new() |> arg.add_opc(arg.Label))
+    |> add_arg(
+      arg.new() |> arg.add_tag(arg.U) |> arg.int_opc(compiler.label_count + 1),
     )
-    // TODO: check if this is valid for multiple exprs in body
-    |> compile_exprs(body)
-
-  case dict.size(params) {
-    0 -> compiler
-    _ -> {
-      add_arg(compiler, arg.new() |> arg.add_opc(arg.Move))
-      |> add_arg(
-        arg.new() |> arg.add_tag(arg.X) |> arg.int_opc(dict.size(params)),
-      )
-      |> add_arg(arg.new() |> arg.add_tag(arg.X) |> arg.int_opc(0))
-    }
-  }
-  |> add_arg(arg.new() |> arg.add_opc(arg.Return))
+    |> add_arg(arg.new() |> arg.add_opc(arg.FuncInfo))
+    |> add_arg(arg.new() |> arg.add_tag(arg.A) |> arg.int_opc(module_id))
+    |> add_arg(arg.new() |> arg.add_tag(arg.A) |> arg.int_opc(name_id))
+    |> add_arg(
+      arg.new() |> arg.add_tag(arg.U) |> arg.int_opc(dict.size(params)),
+    )
+    |> add_arg(arg.new() |> arg.add_opc(arg.Label))
+    |> add_arg(
+      arg.new() |> arg.add_tag(arg.U) |> arg.int_opc(compiler.label_count + 2),
+    ),
+    stack_size: dict.size(params),
+    label_count: compiler.label_count + 2,
+    exports: compiler.exports
+      |> dict.insert(
+        name_id,
+        CompiledFunc(compiler.label_count + 2, dict.size(params)),
+      ),
+    params:,
+  )
+  // TODO: check if this is valid for multiple exprs in body
+  |> compile_exprs(body)
 }
 
 pub fn add_arg(compiler: Compiler, arg: arg.Arg) -> Compiler {
