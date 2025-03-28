@@ -16,6 +16,7 @@ gleam test  # Run the tests
 - [x] Lex parentheses & square brackets
 - [x] Lex special keywords
 - [x] Lex regular identifiers
+- [x] Improve lexing of literals with the usage of regex
 - [ ] Lex spans in source-code for tokens
 
 ### Parser
@@ -35,8 +36,8 @@ gleam test  # Run the tests
 - [x] Compile use expressions
 - [x] Compile import table chunk
 - [x] Compile export table chunk
-- [ ] Compile string table chunk
-- [ ] Compile code chunk
+- [x] Compile string table chunk
+- [x] Compile code chunk
 
 ### Miscellaneous
 

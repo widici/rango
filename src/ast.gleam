@@ -1,3 +1,4 @@
+import gleam/dict
 import token
 
 pub type Expr {
@@ -8,6 +9,7 @@ pub type Expr {
   KeyWord(token.KeyWord)
   Ident(String)
   List(List(Expr))
-  Params(List(#(token.Type, Expr)))
+  //Params(List(#(token.Type, Expr)))
+  Params(dict.Dict(Expr, #(token.Type, Int)))
   Type(token.Type)
 }

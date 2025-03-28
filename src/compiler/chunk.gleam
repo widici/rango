@@ -153,7 +153,6 @@ fn compile_string_chunk(
 fn compile_atom_chunk(
   compiler: compiler.Compiler,
 ) -> #(compiler.Compiler, bytes_tree.BytesTree) {
-  // TODO: Is this corret for 32-bits? Needs to be uints?
   let data =
     bytes_tree.from_bit_array(<<dict.size(compiler.atoms):big-size(32)>>)
     |> bytes_tree.append(

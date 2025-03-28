@@ -37,6 +37,7 @@ pub type Compiler {
     imports: Imports,
     exports: Exports,
     label_count: Int,
+    params: dict.Dict(ast.Expr, #(token.Type, Int)),
     module: String,
   )
 }
@@ -50,6 +51,7 @@ pub fn new(module: String) -> Compiler {
       imports: dict.new(),
       exports: dict.new(),
       label_count: 0,
+      params: dict.new(),
       module:,
     )
     |> get_atom_id(module)
@@ -69,18 +71,23 @@ fn compile_expr(
   exprs: List(ast.Expr),
 ) -> #(Compiler, List(ast.Expr)) {
   case exprs {
-    [ast.Int(data), ..rest] -> #(compile_int(compiler, data), rest)
+    [] -> #(compiler, [])
+    [ast.Int(contents), ..rest] -> #(compile_int(compiler, contents), rest)
+    [ast.Ident(_), ..rest] -> {
+      let assert Ok(ident) = list.first(exprs)
+      #(compile_var(compiler, ident), rest)
+    }
     [ast.List(list), ..rest] -> #(compile_list(compiler, list), rest)
     _ -> panic
   }
 }
 
 /// Compiles an integer expression to beam instructions
-/// Will output: {move,{integer,data},{x,stack_size}}
-fn compile_int(compiler: Compiler, data: Int) -> Compiler {
+/// Will output: {move,{integer,contents},{x,stack_size}}
+fn compile_int(compiler: Compiler, contents: Int) -> Compiler {
   Compiler(
     ..add_arg(compiler, arg.new() |> arg.add_opc(arg.Move))
-    |> add_arg(arg.new() |> arg.add_tag(arg.I) |> arg.int_opc(data))
+    |> add_arg(arg.new() |> arg.add_tag(arg.I) |> arg.int_opc(contents))
     |> add_arg(
       arg.new()
       |> arg.add_tag(arg.X)
@@ -90,8 +97,29 @@ fn compile_int(compiler: Compiler, data: Int) -> Compiler {
   )
 }
 
+/// Compiles a param used in function body  to beam instructions
+/// Will output: {move,{x,ident-index},{x,stack_size}}
+fn compile_var(compiler: Compiler, ident: ast.Expr) -> Compiler {
+  case compiler.params |> dict.get(ident) {
+    Ok(#(_, index)) -> {
+      Compiler(
+        ..add_arg(compiler, arg.new() |> arg.add_opc(arg.Move))
+        |> add_arg(arg.new() |> arg.add_tag(arg.X) |> arg.int_opc(index))
+        |> add_arg(
+          arg.new() |> arg.add_tag(arg.X) |> arg.int_opc(compiler.stack_size),
+        ),
+        stack_size: compiler.stack_size + 1,
+      )
+    }
+    // TODO: handle this as an error
+    Error(_) -> panic
+  }
+}
+
 fn compile_list(compiler: Compiler, list: List(ast.Expr)) -> Compiler {
   case list {
+    [ast.List(list), ..rest] ->
+      compile_list(compiler, list) |> compile_exprs(rest)
     [ast.Op(operator), ..rest] -> compile_arth_expr(compiler, operator, rest)
     [ast.KeyWord(token.Use), ast.Str(module), ast.Str(name), ast.Int(arity)] ->
       compile_use_expr(compiler, module, name, arity)
@@ -185,37 +213,50 @@ fn compile_arth_expr(
 fn compile_func_expr(
   compiler: Compiler,
   name: String,
-  params: List(#(token.Type, ast.Expr)),
+  params: dict.Dict(ast.Expr, #(token.Type, Int)),
   body: List(ast.Expr),
 ) -> Compiler {
   let #(compiler, module_id) = compiler |> get_atom_id(compiler.module)
   let #(compiler, name_id) = compiler |> get_atom_id(name)
 
-  Compiler(
-    ..add_arg(compiler, arg.new() |> arg.add_opc(arg.Label))
-    |> add_arg(
-      arg.new() |> arg.add_tag(arg.U) |> arg.int_opc(compiler.label_count + 1),
-    )
-    |> add_arg(arg.new() |> arg.add_opc(arg.FuncInfo))
-    |> add_arg(arg.new() |> arg.add_tag(arg.A) |> arg.int_opc(module_id))
-    |> add_arg(arg.new() |> arg.add_tag(arg.A) |> arg.int_opc(name_id))
-    |> add_arg(
-      arg.new() |> arg.add_tag(arg.U) |> arg.int_opc(list.length(params)),
-    )
-    |> add_arg(arg.new() |> arg.add_opc(arg.Label))
-    |> add_arg(
-      arg.new() |> arg.add_tag(arg.U) |> arg.int_opc(compiler.label_count + 2),
-    ),
-    stack_size: list.length(params),
-    label_count: compiler.label_count + 2,
-    exports: compiler.exports
-      |> dict.insert(
-        name_id,
-        CompiledFunc(compiler.label_count + 2, list.length(params)),
+  let compiler =
+    Compiler(
+      ..add_arg(compiler, arg.new() |> arg.add_opc(arg.Label))
+      |> add_arg(
+        arg.new() |> arg.add_tag(arg.U) |> arg.int_opc(compiler.label_count + 1),
+      )
+      |> add_arg(arg.new() |> arg.add_opc(arg.FuncInfo))
+      |> add_arg(arg.new() |> arg.add_tag(arg.A) |> arg.int_opc(module_id))
+      |> add_arg(arg.new() |> arg.add_tag(arg.A) |> arg.int_opc(name_id))
+      |> add_arg(
+        arg.new() |> arg.add_tag(arg.U) |> arg.int_opc(dict.size(params)),
+      )
+      |> add_arg(arg.new() |> arg.add_opc(arg.Label))
+      |> add_arg(
+        arg.new() |> arg.add_tag(arg.U) |> arg.int_opc(compiler.label_count + 2),
       ),
-  )
-  // TODO: check if this is valid for multiple exprs in body
-  |> compile_exprs(body)
+      stack_size: dict.size(params),
+      label_count: compiler.label_count + 2,
+      exports: compiler.exports
+        |> dict.insert(
+          name_id,
+          CompiledFunc(compiler.label_count + 2, dict.size(params)),
+        ),
+      params:,
+    )
+    // TODO: check if this is valid for multiple exprs in body
+    |> compile_exprs(body)
+
+  case dict.size(params) {
+    0 -> compiler
+    _ -> {
+      add_arg(compiler, arg.new() |> arg.add_opc(arg.Move))
+      |> add_arg(
+        arg.new() |> arg.add_tag(arg.X) |> arg.int_opc(dict.size(params)),
+      )
+      |> add_arg(arg.new() |> arg.add_tag(arg.X) |> arg.int_opc(0))
+    }
+  }
   |> add_arg(arg.new() |> arg.add_opc(arg.Return))
 }
 

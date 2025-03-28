@@ -1,4 +1,5 @@
 import ast
+import gleam/dict
 import gleam/list
 import gleam/option
 import token
@@ -21,7 +22,7 @@ fn parse_expr(tokens: List(token.Token)) -> #(ast.Expr, List(token.Token)) {
     [token.Bool(bool), ..rest] -> #(ast.Bool(bool), rest)
     [token.Type(ttype), ..rest] -> #(ast.Type(ttype), rest)
     [token.LParen, ..rest] -> parse_list(rest, [])
-    [token.LSquare, ..rest] -> parse_args(rest, option.None, [])
+    [token.LSquare, ..rest] -> parse_args(rest, option.None, dict.new())
     _ -> panic
   }
 }
@@ -41,17 +42,21 @@ fn parse_list(
 
 fn parse_args(
   tokens: List(token.Token),
-  arg_type: option.Option(token.Type),
-  acc: List(#(token.Type, ast.Expr)),
+  param_type: option.Option(token.Type),
+  acc: dict.Dict(ast.Expr, #(token.Type, Int)),
 ) -> #(ast.Expr, List(token.Token)) {
   case tokens {
-    [token.RSquare, ..rest] -> #(ast.Params(acc |> list.reverse()), rest)
-    [token.Type(arg_type), ..rest] ->
-      parse_args(rest, option.Some(arg_type), acc)
+    [token.RSquare, ..rest] -> #(ast.Params(acc), rest)
+    [token.Type(param_type), ..rest] ->
+      parse_args(rest, option.Some(param_type), acc)
     _ -> {
-      let assert option.Some(arg_type) = arg_type
+      let assert option.Some(param_type) = param_type
       let #(expr, rest) = parse_expr(tokens)
-      parse_args(rest, option.Some(arg_type), [#(arg_type, expr), ..acc])
+      parse_args(
+        rest,
+        option.Some(param_type),
+        dict.insert(acc, expr, #(param_type, dict.size(acc))),
+      )
     }
   }
 }

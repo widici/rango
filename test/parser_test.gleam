@@ -1,4 +1,5 @@
 import ast
+import gleam/dict
 import gleeunit/should
 import parser
 import token
@@ -93,10 +94,14 @@ pub fn parse_func_test() {
     ast.List([
       ast.KeyWord(token.Func),
       ast.Ident("add"),
-      ast.Params([
-        #(token.IntType, ast.Ident("a")),
-        #(token.IntType, ast.Ident("b")),
-      ]),
+      ast.Params(
+        dict.from_list([
+          #(ast.Ident("a"), #(token.IntType, 0)),
+          #(ast.Ident("b"), #(token.IntType, 1)),
+          //#(token.IntType, ast.Ident("a")),
+        //#(token.IntType, ast.Ident("b")),
+        ]),
+      ),
       ast.Type(token.IntType),
       ast.List([ast.Op(token.Add), ast.Int(1), ast.Int(2)]),
     ]),
@@ -116,7 +121,7 @@ pub fn parse_func_test() {
     ast.List([
       ast.KeyWord(token.Func),
       ast.Ident("f"),
-      ast.Params([]),
+      ast.Params(dict.new()),
       ast.Type(token.IntType),
       ast.Int(0),
     ]),
