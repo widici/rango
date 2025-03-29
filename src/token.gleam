@@ -1,4 +1,9 @@
-pub type Token {
+import span
+
+pub type Token =
+  #(TokenType, span.Span)
+
+pub type TokenType {
   /// (
   LParen
   /// )

@@ -3,6 +3,7 @@ import gleam/list
 import gleam/option
 import gleam/regex
 import gleam/string
+import span
 import token
 
 pub opaque type Lexer {
@@ -14,23 +15,27 @@ pub fn new(src: String) -> Lexer {
 }
 
 pub fn lex(lexer: Lexer) -> List(token.Token) {
-  lex_(lexer) |> option.values()
+  lex_(lexer)
+  |> list.filter(fn(x) { option.is_some(x.0) })
+  |> list.map(fn(x) {
+    let assert option.Some(token_type) = x.0
+    #(token_type, x.1)
+  })
 }
 
-fn lex_(lexer: Lexer) -> List(option.Option(token.Token)) {
+fn lex_(lexer: Lexer) -> List(#(option.Option(token.TokenType), span.Span)) {
   let prev_len = string.length(lexer.src)
-  let #(token, rest) = lex_token(lexer.src)
+  let #(token_type, rest) = lex_token(lexer.src)
   let curr_len = string.length(rest)
+  let curr_pos = lexer.pos + { prev_len - curr_len }
+  let span = span.Span(start: lexer.pos, end: curr_pos)
   case curr_len {
-    0 -> [token]
-    _ -> [
-      token,
-      ..lex_(Lexer(src: rest, pos: lexer.pos + { prev_len - curr_len }))
-    ]
+    0 -> [#(token_type, span)]
+    _ -> [#(token_type, span), ..lex_(Lexer(src: rest, pos: curr_pos))]
   }
 }
 
-fn lex_token(src: String) -> #(option.Option(token.Token), String) {
+fn lex_token(src: String) -> #(option.Option(token.TokenType), String) {
   case src {
     " " <> rest | "\n" <> rest | "\t" <> rest -> #(option.None, rest)
     "+" <> rest -> #(option.Some(token.Op(token.Add)), rest)
@@ -108,7 +113,7 @@ fn regex_validate(grapheme: String, re: String) -> Bool {
   regex.check(re, grapheme)
 }
 
-fn lex_str(src: String) -> #(token.Token, String) {
+fn lex_str(src: String) -> #(token.TokenType, String) {
   let #(contents, rest) =
     take_predicate(src, "", fn(grapheme) {
       regex_validate(grapheme, "^[^\"]+$")
@@ -117,14 +122,14 @@ fn lex_str(src: String) -> #(token.Token, String) {
   #(token.Str(contents), rest)
 }
 
-fn lex_int(src: String) -> #(token.Token, String) {
+fn lex_int(src: String) -> #(token.TokenType, String) {
   let #(contents, rest) =
     take_predicate(src, "", fn(grapheme) { regex_validate(grapheme, "-?\\d+") })
   let assert Ok(contents) = int.parse(contents)
   #(token.Int(contents), rest)
 }
 
-fn lex_ident(src: String) -> #(token.Token, String) {
+fn lex_ident(src: String) -> #(token.TokenType, String) {
   let #(name, rest) =
     take_predicate(src, "", fn(grapheme) {
       regex_validate(grapheme, "^[a-zA-Z_][a-zA-Z0-9_]*$")

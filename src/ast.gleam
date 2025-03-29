@@ -1,7 +1,11 @@
 import gleam/dict
+import span
 import token
 
-pub type Expr {
+pub type Expr =
+  #(ExprType, span.Span)
+
+pub type ExprType {
   Int(Int)
   Str(String)
   Bool(Bool)

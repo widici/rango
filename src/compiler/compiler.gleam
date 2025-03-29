@@ -72,12 +72,15 @@ fn compile_expr(
 ) -> #(Compiler, List(ast.Expr)) {
   case exprs {
     [] -> #(compiler, [])
-    [ast.Int(contents), ..rest] -> #(compile_int(compiler, contents), rest)
-    [ast.Ident(_), ..rest] -> {
+    [#(ast.Int(contents), _), ..rest] -> #(
+      compile_int(compiler, contents),
+      rest,
+    )
+    [#(ast.Ident(_), _), ..rest] -> {
       let assert Ok(ident) = list.first(exprs)
       #(compile_var(compiler, ident), rest)
     }
-    [ast.List(list), ..rest] -> #(compile_list(compiler, list), rest)
+    [#(ast.List(list), _), ..rest] -> #(compile_list(compiler, list), rest)
     _ -> panic
   }
 }
@@ -118,18 +121,24 @@ fn compile_var(compiler: Compiler, ident: ast.Expr) -> Compiler {
 
 fn compile_list(compiler: Compiler, list: List(ast.Expr)) -> Compiler {
   case list {
-    [ast.List(list), ..rest] ->
+    [#(ast.List(list), _), ..rest] ->
       compile_list(compiler, list) |> compile_exprs(rest)
-    [ast.Op(operator), ..rest] -> compile_arth_expr(compiler, operator, rest)
-    [ast.KeyWord(token.Use), ast.Str(module), ast.Str(name), ast.Int(arity)] ->
-      compile_use_expr(compiler, module, name, arity)
-    [ast.KeyWord(token.Return), ..rest] -> compile_return_expr(compiler, rest)
+    [#(ast.Op(operator), _), ..rest] ->
+      compile_arth_expr(compiler, operator, rest)
     [
-      ast.KeyWord(token.Func),
-      ast.Ident(name),
-      ast.Params(params),
-      ast.Type(_ret_type),
-      ast.List(body),
+      #(ast.KeyWord(token.Use), _),
+      #(ast.Str(module), _),
+      #(ast.Str(name), _),
+      #(ast.Int(arity), _),
+    ] -> compile_use_expr(compiler, module, name, arity)
+    [#(ast.KeyWord(token.Return), _), ..rest] ->
+      compile_return_expr(compiler, rest)
+    [
+      #(ast.KeyWord(token.Func), _),
+      #(ast.Ident(name), _),
+      #(ast.Params(params), _),
+      #(ast.Type(_ret_type), _),
+      #(ast.List(body), _),
     ] -> compile_func_expr(compiler, name, params, body)
     _ -> panic
   }

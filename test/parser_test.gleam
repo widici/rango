@@ -1,12 +1,22 @@
+// TODO: clean up span usage?
+
 import ast
 import gleam/dict
+import gleam/list
 import gleeunit/should
 import parser
+import span
 import token
 
 pub fn int_arith_parse_test() {
   [token.LParen, token.Op(token.Add), token.Int(1), token.Int(1), token.RParen]
-  |> parse_test_helper([ast.List([ast.Op(token.Add), ast.Int(1), ast.Int(1)])])
+  |> parse_test_helper([
+    ast.List([
+      #(ast.Op(token.Add), span.empty()),
+      #(ast.Int(1), span.empty()),
+      #(ast.Int(1), span.empty()),
+    ]),
+  ])
 
   [
     token.LParen,
@@ -21,9 +31,16 @@ pub fn int_arith_parse_test() {
   ]
   |> parse_test_helper([
     ast.List([
-      ast.Op(token.Mul),
-      ast.Int(2),
-      ast.List([ast.Op(token.Add), ast.Int(1), ast.Int(1)]),
+      #(ast.Op(token.Mul), span.empty()),
+      #(ast.Int(2), span.empty()),
+      #(
+        ast.List([
+          #(ast.Op(token.Add), span.empty()),
+          #(ast.Int(1), span.empty()),
+          #(ast.Int(1), span.empty()),
+        ]),
+        span.empty(),
+      ),
     ]),
   ])
 
@@ -43,12 +60,22 @@ pub fn int_arith_parse_test() {
   ]
   |> parse_test_helper([
     ast.List([
-      ast.Op(token.Add),
-      ast.List([
-        ast.Op(token.Div),
-        ast.Int(2),
-        ast.List([ast.Op(token.Sub), ast.Int(321), ast.Int(9)]),
-      ]),
+      #(ast.Op(token.Add), span.empty()),
+      #(
+        ast.List([
+          #(ast.Op(token.Div), span.empty()),
+          #(ast.Int(2), span.empty()),
+          #(
+            ast.List([
+              #(ast.Op(token.Sub), span.empty()),
+              #(ast.Int(321), span.empty()),
+              #(ast.Int(9), span.empty()),
+            ]),
+            span.empty(),
+          ),
+        ]),
+        span.empty(),
+      ),
     ]),
   ])
 
@@ -65,9 +92,16 @@ pub fn int_arith_parse_test() {
   ]
   |> parse_test_helper([
     ast.List([
-      ast.Op(token.Mul),
-      ast.List([ast.Op(token.Add), ast.Int(1), ast.Int(1)]),
-      ast.Int(2),
+      #(ast.Op(token.Mul), span.empty()),
+      #(
+        ast.List([
+          #(ast.Op(token.Add), span.empty()),
+          #(ast.Int(1), span.empty()),
+          #(ast.Int(1), span.empty()),
+        ]),
+        span.empty(),
+      ),
+      #(ast.Int(2), span.empty()),
     ]),
   ])
 }
@@ -92,18 +126,26 @@ pub fn parse_func_test() {
   ]
   |> parse_test_helper([
     ast.List([
-      ast.KeyWord(token.Func),
-      ast.Ident("add"),
-      ast.Params(
-        dict.from_list([
-          #(ast.Ident("a"), #(token.IntType, 0)),
-          #(ast.Ident("b"), #(token.IntType, 1)),
-          //#(token.IntType, ast.Ident("a")),
-        //#(token.IntType, ast.Ident("b")),
-        ]),
+      #(ast.KeyWord(token.Func), span.empty()),
+      #(ast.Ident("add"), span.empty()),
+      #(
+        ast.Params(
+          dict.from_list([
+            #(#(ast.Ident("a"), span.empty()), #(token.IntType, 0)),
+            #(#(ast.Ident("b"), span.empty()), #(token.IntType, 1)),
+          ]),
+        ),
+        span.empty(),
       ),
-      ast.Type(token.IntType),
-      ast.List([ast.Op(token.Add), ast.Int(1), ast.Int(2)]),
+      #(ast.Type(token.IntType), span.empty()),
+      #(
+        ast.List([
+          #(ast.Op(token.Add), span.empty()),
+          #(ast.Int(1), span.empty()),
+          #(ast.Int(2), span.empty()),
+        ]),
+        span.empty(),
+      ),
     ]),
   ])
 
@@ -119,17 +161,19 @@ pub fn parse_func_test() {
   ]
   |> parse_test_helper([
     ast.List([
-      ast.KeyWord(token.Func),
-      ast.Ident("f"),
-      ast.Params(dict.new()),
-      ast.Type(token.IntType),
-      ast.Int(0),
+      #(ast.KeyWord(token.Func), span.empty()),
+      #(ast.Ident("f"), span.empty()),
+      #(ast.Params(dict.new()), span.empty()),
+      #(ast.Type(token.IntType), span.empty()),
+      #(ast.Int(0), span.empty()),
     ]),
   ])
 }
 
-fn parse_test_helper(input: List(token.Token), output: List(ast.Expr)) {
+fn parse_test_helper(input: List(token.TokenType), output: List(ast.ExprType)) {
   input
+  |> list.map(fn(x) { #(x, span.empty()) })
   |> parser.parse()
+  |> list.map(fn(x) { x.0 })
   |> should.equal(output)
 }

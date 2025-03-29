@@ -1,3 +1,4 @@
+import gleam/list
 import gleeunit/should
 import lexer
 import token
@@ -64,6 +65,9 @@ pub fn bool_lex_test() {
   ])
 }
 
-fn lex_test_helper(input: String, output: List(token.Token)) {
-  lexer.new(input) |> lexer.lex() |> should.equal(output)
+fn lex_test_helper(input: String, output: List(token.TokenType)) {
+  lexer.new(input)
+  |> lexer.lex()
+  |> list.map(fn(x) { x.0 })
+  |> should.equal(output)
 }
