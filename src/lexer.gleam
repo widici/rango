@@ -28,7 +28,7 @@ fn lex_(lexer: Lexer) -> List(#(option.Option(token.TokenType), span.Span)) {
   let #(token_type, rest) = lex_token(lexer.src)
   let curr_len = string.length(rest)
   let curr_pos = lexer.pos + { prev_len - curr_len }
-  let span = span.Span(start: lexer.pos, end: curr_pos)
+  let span = span.Span(start: lexer.pos, end: curr_pos - 1)
   case curr_len {
     0 -> [#(token_type, span)]
     _ -> [#(token_type, span), ..lex_(Lexer(src: rest, pos: curr_pos))]

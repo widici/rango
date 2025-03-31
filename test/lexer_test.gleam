@@ -1,6 +1,7 @@
 import gleam/list
 import gleeunit/should
 import lexer
+import span
 import token
 
 pub fn int_arith_lex_test() {
@@ -62,6 +63,38 @@ pub fn bool_lex_test() {
     token.RParen,
     token.Bool(False),
     token.RParen,
+  ])
+}
+
+pub fn span_lex_test() {
+  "(+ 10 (* 321 9876))"
+  |> lexer.new()
+  |> lexer.lex()
+  |> should.equal([
+    #(token.LParen, span.Span(0, 0)),
+    #(token.Op(token.Add), span.Span(1, 1)),
+    #(token.Int(10), span.Span(3, 4)),
+    #(token.LParen, span.Span(6, 6)),
+    #(token.Op(token.Mul), span.Span(7, 7)),
+    #(token.Int(321), span.Span(9, 11)),
+    #(token.Int(9876), span.Span(13, 16)),
+    #(token.RParen, span.Span(17, 17)),
+    #(token.RParen, span.Span(18, 18)),
+  ])
+  "\n(+ 10 1)\n\n(* 23 4)"
+  |> lexer.new()
+  |> lexer.lex()
+  |> should.equal([
+    #(token.LParen, span.Span(1, 1)),
+    #(token.Op(token.Add), span.Span(2, 2)),
+    #(token.Int(10), span.Span(4, 5)),
+    #(token.Int(1), span.Span(7, 7)),
+    #(token.RParen, span.Span(8, 8)),
+    #(token.LParen, span.Span(11, 11)),
+    #(token.Op(token.Mul), span.Span(12, 12)),
+    #(token.Int(23), span.Span(14, 15)),
+    #(token.Int(4), span.Span(17, 17)),
+    #(token.RParen, span.Span(18, 18)),
   ])
 }
 
