@@ -68,38 +68,38 @@ pub fn bool_lex_test() {
 
 pub fn span_lex_test() {
   "(+ 10 (* 321 9876))"
-  |> lexer.new()
+  |> lexer.new("test.lisp")
   |> lexer.lex()
   |> should.equal([
-    #(token.LParen, span.Span(0, 0)),
-    #(token.Op(token.Add), span.Span(1, 1)),
-    #(token.Int(10), span.Span(3, 4)),
-    #(token.LParen, span.Span(6, 6)),
-    #(token.Op(token.Mul), span.Span(7, 7)),
-    #(token.Int(321), span.Span(9, 11)),
-    #(token.Int(9876), span.Span(13, 16)),
-    #(token.RParen, span.Span(17, 17)),
-    #(token.RParen, span.Span(18, 18)),
+    #(token.LParen, span.Span(0, 0, "test.lisp")),
+    #(token.Op(token.Add), span.Span(1, 1, "test.lisp")),
+    #(token.Int(10), span.Span(3, 4, "test.lisp")),
+    #(token.LParen, span.Span(6, 6, "test.lisp")),
+    #(token.Op(token.Mul), span.Span(7, 7, "test.lisp")),
+    #(token.Int(321), span.Span(9, 11, "test.lisp")),
+    #(token.Int(9876), span.Span(13, 16, "test.lisp")),
+    #(token.RParen, span.Span(17, 17, "test.lisp")),
+    #(token.RParen, span.Span(18, 18, "test.lisp")),
   ])
   "\n(+ 10 1)\n\n(* 23 4)"
-  |> lexer.new()
+  |> lexer.new("")
   |> lexer.lex()
   |> should.equal([
-    #(token.LParen, span.Span(1, 1)),
-    #(token.Op(token.Add), span.Span(2, 2)),
-    #(token.Int(10), span.Span(4, 5)),
-    #(token.Int(1), span.Span(7, 7)),
-    #(token.RParen, span.Span(8, 8)),
-    #(token.LParen, span.Span(11, 11)),
-    #(token.Op(token.Mul), span.Span(12, 12)),
-    #(token.Int(23), span.Span(14, 15)),
-    #(token.Int(4), span.Span(17, 17)),
-    #(token.RParen, span.Span(18, 18)),
+    #(token.LParen, span.Span(1, 1, "")),
+    #(token.Op(token.Add), span.Span(2, 2, "")),
+    #(token.Int(10), span.Span(4, 5, "")),
+    #(token.Int(1), span.Span(7, 7, "")),
+    #(token.RParen, span.Span(8, 8, "")),
+    #(token.LParen, span.Span(11, 11, "")),
+    #(token.Op(token.Mul), span.Span(12, 12, "")),
+    #(token.Int(23), span.Span(14, 15, "")),
+    #(token.Int(4), span.Span(17, 17, "")),
+    #(token.RParen, span.Span(18, 18, "")),
   ])
 }
 
 fn lex_test_helper(input: String, output: List(token.TokenType)) {
-  lexer.new(input)
+  lexer.new(input, "")
   |> lexer.lex()
   |> list.map(fn(x) { x.0 })
   |> should.equal(output)

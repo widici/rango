@@ -173,33 +173,33 @@ pub fn parse_func_test() {
 
 pub fn parse_span_test() {
   "(fn add [Int a b] (+ a b))"
-  |> lexer.new()
+  |> lexer.new("")
   |> lexer.lex()
   |> parser.parse()
   |> should.equal([
     #(
       ast.List([
-        #(ast.KeyWord(token.Func), span.Span(1, 2)),
-        #(ast.Ident("add"), span.Span(4, 6)),
+        #(ast.KeyWord(token.Func), span.Span(1, 2, "")),
+        #(ast.Ident("add"), span.Span(4, 6, "")),
         #(
           ast.Params(
             dict.from_list([
-              #(#(ast.Ident("a"), span.Span(13, 13)), #(token.IntType, 0)),
-              #(#(ast.Ident("b"), span.Span(15, 15)), #(token.IntType, 1)),
+              #(#(ast.Ident("a"), span.Span(13, 13, "")), #(token.IntType, 0)),
+              #(#(ast.Ident("b"), span.Span(15, 15, "")), #(token.IntType, 1)),
             ]),
           ),
-          span.Span(8, 16),
+          span.Span(8, 16, ""),
         ),
         #(
           ast.List([
-            #(ast.Op(token.Add), span.Span(19, 19)),
-            #(ast.Ident("a"), span.Span(21, 21)),
-            #(ast.Ident("b"), span.Span(23, 23)),
+            #(ast.Op(token.Add), span.Span(19, 19, "")),
+            #(ast.Ident("a"), span.Span(21, 21, "")),
+            #(ast.Ident("b"), span.Span(23, 23, "")),
           ]),
-          span.Span(18, 24),
+          span.Span(18, 24, ""),
         ),
       ]),
-      span.Span(0, 25),
+      span.Span(0, 25, ""),
     ),
   ])
 }

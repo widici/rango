@@ -7,11 +7,11 @@ import span
 import token
 
 pub opaque type Lexer {
-  Lexer(src: String, pos: Int)
+  Lexer(src: String, pos: Int, file_path: String)
 }
 
-pub fn new(src: String) -> Lexer {
-  Lexer(src, pos: 0)
+pub fn new(src: String, file_path: String) -> Lexer {
+  Lexer(src:, pos: 0, file_path:)
 }
 
 pub fn lex(lexer: Lexer) -> List(token.Token) {
@@ -28,10 +28,11 @@ fn lex_(lexer: Lexer) -> List(#(option.Option(token.TokenType), span.Span)) {
   let #(token_type, rest) = lex_token(lexer.src)
   let curr_len = string.length(rest)
   let curr_pos = lexer.pos + { prev_len - curr_len }
-  let span = span.Span(start: lexer.pos, end: curr_pos - 1)
+  let span =
+    span.Span(start: lexer.pos, end: curr_pos - 1, file_path: lexer.file_path)
   case curr_len {
     0 -> [#(token_type, span)]
-    _ -> [#(token_type, span), ..lex_(Lexer(src: rest, pos: curr_pos))]
+    _ -> [#(token_type, span), ..lex_(Lexer(..lexer, src: rest, pos: curr_pos))]
   }
 }
 
