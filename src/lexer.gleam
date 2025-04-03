@@ -1,7 +1,9 @@
+import error
 import gleam/int
 import gleam/list
 import gleam/option
 import gleam/regex
+import gleam/result
 import gleam/string
 import span
 import token
@@ -14,70 +16,84 @@ pub fn new(src: String, file_path: String) -> Lexer {
   Lexer(src:, pos: 0, file_path:)
 }
 
-pub fn lex(lexer: Lexer) -> List(token.Token) {
-  lex_(lexer)
-  |> list.filter(fn(x) { option.is_some(x.0) })
-  |> list.map(fn(x) {
-    let assert option.Some(token_type) = x.0
-    #(token_type, x.1)
-  })
+pub fn lex(lexer: Lexer) -> Result(List(token.Token), error.Error) {
+  use tokens <- result.try(lex_(lexer))
+  Ok(
+    tokens
+    |> list.filter(fn(x) { option.is_some(x.0) })
+    |> list.map(fn(x) {
+      let assert option.Some(token_type) = x.0
+      #(token_type, x.1)
+    }),
+  )
 }
 
-fn lex_(lexer: Lexer) -> List(#(option.Option(token.TokenType), span.Span)) {
+fn lex_(
+  lexer: Lexer,
+) -> Result(List(#(option.Option(token.TokenType), span.Span)), error.Error) {
   let prev_len = string.length(lexer.src)
-  let #(token_type, rest) = lex_token(lexer.src)
+  use #(token_type, rest) <- result.try(lex_token(
+    lexer.src,
+    span.Span(start: lexer.pos, end: lexer.pos, file_path: lexer.file_path),
+  ))
   let curr_len = string.length(rest)
   let curr_pos = lexer.pos + { prev_len - curr_len }
   let span =
     span.Span(start: lexer.pos, end: curr_pos - 1, file_path: lexer.file_path)
   case curr_len {
-    0 -> [#(token_type, span)]
-    _ -> [#(token_type, span), ..lex_(Lexer(..lexer, src: rest, pos: curr_pos))]
+    0 -> Ok([#(token_type, span)])
+    _ -> {
+      use acc <- result.try(lex_(Lexer(..lexer, src: rest, pos: curr_pos)))
+      Ok([#(token_type, span), ..acc])
+    }
   }
 }
 
-fn lex_token(src: String) -> #(option.Option(token.TokenType), String) {
+fn lex_token(
+  src: String,
+  curr_pos: span.Span,
+) -> Result(#(option.Option(token.TokenType), String), error.Error) {
   case src {
-    " " <> rest | "\n" <> rest | "\t" <> rest -> #(option.None, rest)
-    "+" <> rest -> #(option.Some(token.Op(token.Add)), rest)
-    "-" <> rest -> #(option.Some(token.Op(token.Sub)), rest)
-    "*" <> rest -> #(option.Some(token.Op(token.Mul)), rest)
-    "/" <> rest -> #(option.Some(token.Op(token.Div)), rest)
+    " " <> rest | "\n" <> rest | "\t" <> rest -> Ok(#(option.None, rest))
+    "+" <> rest -> Ok(#(option.Some(token.Op(token.Add)), rest))
+    "-" <> rest -> Ok(#(option.Some(token.Op(token.Sub)), rest))
+    "*" <> rest -> Ok(#(option.Some(token.Op(token.Mul)), rest))
+    "/" <> rest -> Ok(#(option.Some(token.Op(token.Div)), rest))
     // Comparison operators
-    "==" <> rest -> #(option.Some(token.Op(token.EqEq)), rest)
-    "!=" <> rest -> #(option.Some(token.Op(token.Ne)), rest)
-    ">" <> rest -> #(option.Some(token.Op(token.Gt)), rest)
-    "<" <> rest -> #(option.Some(token.Op(token.Lt)), rest)
-    ">=" <> rest -> #(option.Some(token.Op(token.Ge)), rest)
-    "<=" <> rest -> #(option.Some(token.Op(token.Le)), rest)
+    "==" <> rest -> Ok(#(option.Some(token.Op(token.EqEq)), rest))
+    "!=" <> rest -> Ok(#(option.Some(token.Op(token.Ne)), rest))
+    ">" <> rest -> Ok(#(option.Some(token.Op(token.Gt)), rest))
+    "<" <> rest -> Ok(#(option.Some(token.Op(token.Lt)), rest))
+    ">=" <> rest -> Ok(#(option.Some(token.Op(token.Ge)), rest))
+    "<=" <> rest -> Ok(#(option.Some(token.Op(token.Le)), rest))
     // Logical operators
-    "and" <> rest -> #(option.Some(token.Op(token.And)), rest)
-    "or" <> rest -> #(option.Some(token.Op(token.Or)), rest)
-    "!" <> rest -> #(option.Some(token.Op(token.Not)), rest)
+    "and" <> rest -> Ok(#(option.Some(token.Op(token.And)), rest))
+    "or" <> rest -> Ok(#(option.Some(token.Op(token.Or)), rest))
+    "!" <> rest -> Ok(#(option.Some(token.Op(token.Not)), rest))
     // Parantheses
-    "(" <> rest -> #(option.Some(token.LParen), rest)
-    ")" <> rest -> #(option.Some(token.RParen), rest)
+    "(" <> rest -> Ok(#(option.Some(token.LParen), rest))
+    ")" <> rest -> Ok(#(option.Some(token.RParen), rest))
     // Square-brackets
-    "[" <> rest -> #(option.Some(token.LSquare), rest)
-    "]" <> rest -> #(option.Some(token.RSquare), rest)
+    "[" <> rest -> Ok(#(option.Some(token.LSquare), rest))
+    "]" <> rest -> Ok(#(option.Some(token.RSquare), rest))
     // Booleans
-    "True" <> rest -> #(option.Some(token.Bool(True)), rest)
-    "False" <> rest -> #(option.Some(token.Bool(False)), rest)
+    "True" <> rest -> Ok(#(option.Some(token.Bool(True)), rest))
+    "False" <> rest -> Ok(#(option.Some(token.Bool(False)), rest))
     // Types
-    "Int" <> rest -> #(option.Some(token.Type(token.IntType)), rest)
-    "Str" <> rest -> #(option.Some(token.Type(token.StrType)), rest)
-    "Bool" <> rest -> #(option.Some(token.Type(token.BoolType)), rest)
+    "Int" <> rest -> Ok(#(option.Some(token.Type(token.IntType)), rest))
+    "Str" <> rest -> Ok(#(option.Some(token.Type(token.StrType)), rest))
+    "Bool" <> rest -> Ok(#(option.Some(token.Type(token.BoolType)), rest))
     // Keywords
-    "use" <> rest -> #(option.Some(token.KeyWord(token.Use)), rest)
-    "fn" <> rest -> #(option.Some(token.KeyWord(token.Func)), rest)
-    "ret" <> rest -> #(option.Some(token.KeyWord(token.Return)), rest)
+    "use" <> rest -> Ok(#(option.Some(token.KeyWord(token.Use)), rest))
+    "fn" <> rest -> Ok(#(option.Some(token.KeyWord(token.Func)), rest))
+    "ret" <> rest -> Ok(#(option.Some(token.KeyWord(token.Return)), rest))
     "\"" <> rest -> {
       let #(token, rest) = lex_str(rest)
-      #(option.Some(token), rest)
+      Ok(#(option.Some(token), rest))
     }
     _ -> {
       let assert Ok(#(grapheme, _)) = string.pop_grapheme(src)
-      let assert Ok(func) =
+      let funcs =
         [#("-?\\d+", lex_int), #("^[a-zA-Z_][a-zA-Z0-9_]*$", lex_ident)]
         |> list.map(fn(x) {
           case regex_validate(grapheme, x.0) {
@@ -86,9 +102,14 @@ fn lex_token(src: String) -> #(option.Option(token.TokenType), String) {
           }
         })
         |> option.values()
-        |> list.first()
-      let #(token, rest) = func(src)
-      #(option.Some(token), rest)
+      case funcs {
+        [] -> Error(error.UnexpectedChar(span: curr_pos))
+        [func] -> {
+          let #(token, rest) = func(src)
+          Ok(#(option.Some(token), rest))
+        }
+        _ -> Error(error.AmbigousTokenization(span: curr_pos))
+      }
     }
   }
 }

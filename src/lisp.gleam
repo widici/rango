@@ -1,10 +1,13 @@
 import argv
 import compiler/chunk
 import compiler/compiler
+import error
 import gleam/bytes_tree
 import gleam/erlang/atom
 import gleam/erlang/charlist
+import gleam/io
 import gleam/list
+import gleam/result
 import gleam/string
 import glint
 import lexer
@@ -26,7 +29,7 @@ fn load() -> glint.Command(Nil) {
   let assert [file_ident, ..dir_path] =
     string.split(path, "/") |> list.reverse()
   let assert [file_name, _] = string.split(file_ident, ".") |> list.reverse()
-  build_src(path, file_name)
+  let _ = build_src(path, file_name) |> io.debug()
   add_path(list.reverse(dir_path) |> string.join("/") |> charlist.from_string())
   load_file(file_name |> atom.create_from_string())
   Nil
@@ -40,23 +43,27 @@ fn build() -> glint.Command(Nil) {
   let assert [path, ..] = args
   let assert [file_ident, ..] = string.split(path, "/") |> list.reverse()
   let assert [file_name, _] = string.split(file_ident, ".") |> list.reverse()
-  build_src(path, file_name)
+  let _ = build_src(path, file_name) |> io.debug()
   Nil
 }
 
-fn build_src(path: String, file_name: String) -> Nil {
+fn build_src(path: String, file_name: String) -> Result(Nil, error.Error) {
   let assert Ok(src) = simplifile.read(path)
   let assert Ok(prelude) = simplifile.read("./prelude/prelude.lisp")
-  let tokens =
+  use prelude_tokens <- result.try(
     lexer.new(prelude, "./prelude/prelude.lisp")
-    |> lexer.lex()
-    |> list.append(lexer.new(src, path) |> lexer.lex())
-  let ast = tokens |> parser.parse()
-  let compiler = compiler.new(file_name) |> compiler.compile_exprs(ast)
+    |> lexer.lex(),
+  )
+  use src_tokens <- result.try(lexer.new(src, path) |> lexer.lex())
+  let tokens = prelude_tokens |> list.append(src_tokens)
+  use ast <- result.try(tokens |> parser.parse())
+  use compiler <- result.try(
+    compiler.new(file_name) |> compiler.compile_exprs(ast),
+  )
   let beam_module =
     chunk.compile_beam_module(compiler) |> bytes_tree.to_bit_array()
   let assert Ok(Nil) = simplifile.write_bits(file_name <> ".beam", beam_module)
-  Nil
+  Ok(Nil)
 }
 
 pub fn main() {

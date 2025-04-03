@@ -1,8 +1,11 @@
 import ast
 import compiler/arg
+import error
 import gleam/bytes_tree
 import gleam/dict
 import gleam/list
+import gleam/result
+import span
 import token
 
 /// Used for representing foreign Erlang functions
@@ -37,7 +40,7 @@ pub type Compiler {
     imports: Imports,
     exports: Exports,
     label_count: Int,
-    params: dict.Dict(ast.Expr, #(token.Type, Int)),
+    params: dict.Dict(String, #(token.Type, Int)),
     module: String,
   )
 }
@@ -58,10 +61,13 @@ pub fn new(module: String) -> Compiler {
   compiler
 }
 
-pub fn compile_exprs(compiler: Compiler, exprs: List(ast.Expr)) -> Compiler {
-  let #(compiler, rest) = compile_expr(compiler, exprs)
+pub fn compile_exprs(
+  compiler: Compiler,
+  exprs: List(ast.Expr),
+) -> Result(Compiler, error.Error) {
+  use #(compiler, rest) <- result.try(compile_expr(compiler, exprs))
   case list.length(rest) {
-    0 -> compiler
+    0 -> Ok(compiler)
     _ -> compile_exprs(compiler, rest)
   }
 }
@@ -69,19 +75,23 @@ pub fn compile_exprs(compiler: Compiler, exprs: List(ast.Expr)) -> Compiler {
 fn compile_expr(
   compiler: Compiler,
   exprs: List(ast.Expr),
-) -> #(Compiler, List(ast.Expr)) {
+) -> Result(#(Compiler, List(ast.Expr)), error.Error) {
   case exprs {
-    [] -> #(compiler, [])
-    [#(ast.Int(contents), _), ..rest] -> #(
-      compile_int(compiler, contents),
-      rest,
-    )
-    [#(ast.Ident(_), _), ..rest] -> {
-      let assert Ok(ident) = list.first(exprs)
-      #(compile_var(compiler, ident), rest)
+    [] -> Ok(#(compiler, []))
+    [#(ast.Int(contents), _), ..rest] ->
+      Ok(#(compile_int(compiler, contents), rest))
+    [#(ast.Ident(name), span), ..rest] -> {
+      use compiler <- result.try(compile_var(compiler, name, span))
+      Ok(#(compiler, rest))
     }
-    [#(ast.List(list), _), ..rest] -> #(compile_list(compiler, list), rest)
-    _ -> panic
+    [#(ast.List(list), span), ..rest] -> {
+      use compiler <- result.try(compile_list(compiler, list, span))
+      Ok(#(compiler, rest))
+    }
+    _ -> {
+      let assert Ok(#(expr_type, span)) = list.first(exprs)
+      Error(error.UnexpectedExpr(expr_type, span))
+    }
   }
 }
 
@@ -101,28 +111,39 @@ fn compile_int(compiler: Compiler, contents: Int) -> Compiler {
 }
 
 /// Compiles a param used in function body to beam instructions
-/// Will output: {move,{x,ident-index},{x,stack_size}}
-fn compile_var(compiler: Compiler, ident: ast.Expr) -> Compiler {
-  case compiler.params |> dict.get(ident) {
+/// Will output: {move,{x,name-index},{x,stack_size}}
+fn compile_var(
+  compiler: Compiler,
+  name: String,
+  span: span.Span,
+) -> Result(Compiler, error.Error) {
+  case compiler.params |> dict.get(name) {
     Ok(#(_, index)) -> {
-      Compiler(
-        ..add_arg(compiler, arg.new() |> arg.add_opc(arg.Move))
-        |> add_arg(arg.new() |> arg.add_tag(arg.X) |> arg.int_opc(index))
-        |> add_arg(
-          arg.new() |> arg.add_tag(arg.X) |> arg.int_opc(compiler.stack_size),
+      Ok(
+        Compiler(
+          ..add_arg(compiler, arg.new() |> arg.add_opc(arg.Move))
+          |> add_arg(arg.new() |> arg.add_tag(arg.X) |> arg.int_opc(index))
+          |> add_arg(
+            arg.new() |> arg.add_tag(arg.X) |> arg.int_opc(compiler.stack_size),
+          ),
+          stack_size: compiler.stack_size + 1,
         ),
-        stack_size: compiler.stack_size + 1,
       )
     }
-    // TODO: handle this as an error
-    Error(_) -> panic
+    Error(_) -> Error(error.NotFound(name, span))
   }
 }
 
-fn compile_list(compiler: Compiler, list: List(ast.Expr)) -> Compiler {
+fn compile_list(
+  compiler: Compiler,
+  list: List(ast.Expr),
+  span: span.Span,
+) -> Result(Compiler, error.Error) {
   case list {
-    [#(ast.List(list), _), ..rest] ->
-      compile_list(compiler, list) |> compile_exprs(rest)
+    [#(ast.List(list), _), ..rest] -> {
+      use compiler <- result.try(compile_list(compiler, list, span))
+      compiler |> compile_exprs(rest)
+    }
     [#(ast.Op(operator), _), ..rest] ->
       compile_arth_expr(compiler, operator, rest)
     [
@@ -130,7 +151,7 @@ fn compile_list(compiler: Compiler, list: List(ast.Expr)) -> Compiler {
       #(ast.Str(module), _),
       #(ast.Str(name), _),
       #(ast.Int(arity), _),
-    ] -> compile_use_expr(compiler, module, name, arity)
+    ] -> Ok(compile_use_expr(compiler, module, name, arity))
     [#(ast.KeyWord(token.Return), _), ..rest] ->
       compile_return_expr(compiler, rest)
     [
@@ -140,7 +161,7 @@ fn compile_list(compiler: Compiler, list: List(ast.Expr)) -> Compiler {
       #(ast.Type(_ret_type), _),
       #(ast.List(body), _),
     ] -> compile_func_expr(compiler, name, params, body)
-    _ -> panic
+    _ -> Error(error.UnexpectedList(span:))
   }
 }
 
@@ -158,16 +179,21 @@ fn compile_use_expr(
 /// Will output:
 /// {move,{x,stack_size-1},{x,0}}
 /// {return}
-fn compile_return_expr(compiler: Compiler, exprs: List(ast.Expr)) -> Compiler {
-  let compiler = compile_exprs(compiler, exprs)
-  add_arg(compiler, arg.new() |> arg.add_opc(arg.Move))
-  |> add_arg(
-    arg.new()
-    |> arg.add_tag(arg.X)
-    |> arg.int_opc(compiler.stack_size - 1),
+fn compile_return_expr(
+  compiler: Compiler,
+  exprs: List(ast.Expr),
+) -> Result(Compiler, error.Error) {
+  use compiler <- result.try(compile_exprs(compiler, exprs))
+  Ok(
+    add_arg(compiler, arg.new() |> arg.add_opc(arg.Move))
+    |> add_arg(
+      arg.new()
+      |> arg.add_tag(arg.X)
+      |> arg.int_opc(compiler.stack_size - 1),
+    )
+    |> add_arg(arg.new() |> arg.add_tag(arg.X) |> arg.int_opc(0))
+    |> add_arg(arg.new() |> arg.add_opc(arg.Return)),
   )
-  |> add_arg(arg.new() |> arg.add_tag(arg.X) |> arg.int_opc(0))
-  |> add_arg(arg.new() |> arg.add_opc(arg.Return))
 }
 
 /// Compiles arithmetic expressions to beam instructions
@@ -178,10 +204,11 @@ fn compile_arth_expr(
   compiler: Compiler,
   operator: token.Op,
   operands: List(ast.Expr),
-) -> Compiler {
+) -> Result(Compiler, error.Error) {
   let assert 2 = list.length(operands)
+  use compiler <- result.try(compile_exprs(compiler, operands))
   let compiler =
-    compile_exprs(compiler, operands)
+    compiler
     |> add_arg(arg.new() |> arg.add_opc(arg.GcBif2))
     // A fail will throw an exception on error due to flag being 0
     |> add_arg(arg.new() |> arg.add_tag(arg.F) |> arg.int_opc(0))
@@ -224,7 +251,7 @@ fn compile_arth_expr(
       |> arg.add_tag(arg.X)
       |> arg.int_opc(compiler.stack_size - 2),
     )
-  Compiler(..compiler, stack_size: compiler.stack_size - 1)
+  Ok(Compiler(..compiler, stack_size: compiler.stack_size - 1))
 }
 
 /// Compiles a function defintion expression to beam instructions
@@ -240,9 +267,17 @@ fn compile_func_expr(
   name: String,
   params: dict.Dict(ast.Expr, #(token.Type, Int)),
   body: List(ast.Expr),
-) -> Compiler {
+) -> Result(Compiler, error.Error) {
   let #(compiler, module_id) = compiler |> get_atom_id(compiler.module)
   let #(compiler, name_id) = compiler |> get_atom_id(name)
+  let param_names =
+    params
+    |> dict.to_list()
+    |> list.map(fn(x) {
+      let assert #(#(ast.Ident(name), _), index) = x
+      #(name, index)
+    })
+    |> dict.from_list()
 
   Compiler(
     ..add_arg(compiler, arg.new() |> arg.add_opc(arg.Label))
@@ -266,7 +301,7 @@ fn compile_func_expr(
         name_id,
         CompiledFunc(compiler.label_count + 2, dict.size(params)),
       ),
-    params:,
+    params: param_names,
   )
   // TODO: check if this is valid for multiple exprs in body
   |> compile_exprs(body)
