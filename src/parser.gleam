@@ -38,7 +38,7 @@ fn parse_expr(
       parse_args(rest, option.None, dict.new(), start, file_path)
     _ -> {
       let assert Ok(#(token_type, span)) = list.first(tokens)
-      Error(error.UnexpectedToken(token_type:, span:))
+      Error(error.Error(error.UnexpectedToken(token_type:), span))
     }
   }
 }
@@ -46,7 +46,7 @@ fn parse_expr(
 fn parse_list(
   tokens: List(token.Token),
   acc: List(ast.Expr),
-  start: Int,
+  start: #(Int, Int),
   file_path: String,
 ) -> Result(#(ast.Expr, List(token.Token)), error.Error) {
   case tokens {
@@ -68,7 +68,7 @@ fn parse_args(
   tokens: List(token.Token),
   param_type: option.Option(token.Type),
   acc: dict.Dict(ast.Expr, #(token.Type, Int)),
-  start: Int,
+  start: #(Int, Int),
   file_path: String,
 ) -> Result(#(ast.Expr, List(token.Token)), error.Error) {
   case tokens {

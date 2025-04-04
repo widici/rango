@@ -29,10 +29,18 @@ fn load() -> glint.Command(Nil) {
   let assert [file_ident, ..dir_path] =
     string.split(path, "/") |> list.reverse()
   let assert [file_name, _] = string.split(file_ident, ".") |> list.reverse()
-  let _ = build_src(path, file_name) |> io.debug()
-  add_path(list.reverse(dir_path) |> string.join("/") |> charlist.from_string())
-  load_file(file_name |> atom.create_from_string())
-  Nil
+  case build_src(path, file_name) {
+    Ok(_) -> {
+      add_path(
+        list.reverse(dir_path) |> string.join("/") |> charlist.from_string(),
+      )
+      load_file(file_name |> atom.create_from_string())
+      Nil
+    }
+    Error(error) ->
+      error.to_string(error)
+      |> io.print_error()
+  }
 }
 
 fn build() -> glint.Command(Nil) {
@@ -43,8 +51,12 @@ fn build() -> glint.Command(Nil) {
   let assert [path, ..] = args
   let assert [file_ident, ..] = string.split(path, "/") |> list.reverse()
   let assert [file_name, _] = string.split(file_ident, ".") |> list.reverse()
-  let _ = build_src(path, file_name) |> io.debug()
-  Nil
+  case build_src(path, file_name) {
+    Ok(_) -> Nil
+    Error(error) ->
+      error.to_string(error)
+      |> io.print_error()
+  }
 }
 
 fn build_src(path: String, file_name: String) -> Result(Nil, error.Error) {

@@ -90,7 +90,7 @@ fn compile_expr(
     }
     _ -> {
       let assert Ok(#(expr_type, span)) = list.first(exprs)
-      Error(error.UnexpectedExpr(expr_type, span))
+      Error(error.Error(error.UnexpectedExpr(expr_type), span:))
     }
   }
 }
@@ -130,7 +130,7 @@ fn compile_var(
         ),
       )
     }
-    Error(_) -> Error(error.NotFound(name, span))
+    Error(_) -> Error(error.Error(error.NotFound(name), span))
   }
 }
 
@@ -161,7 +161,14 @@ fn compile_list(
       #(ast.Type(_ret_type), _),
       #(ast.List(body), _),
     ] -> compile_func_expr(compiler, name, params, body)
-    _ -> Error(error.UnexpectedList(span:))
+    _ ->
+      Error(error.Error(
+        error.UnexpectedList(
+          list
+          |> list.map(fn(x) { x.0 }),
+        ),
+        span,
+      ))
   }
 }
 

@@ -9,11 +9,11 @@ import span
 import token
 
 pub opaque type Lexer {
-  Lexer(src: String, pos: Int, file_path: String)
+  Lexer(src: String, pos: #(Int, Int), file_path: String)
 }
 
 pub fn new(src: String, file_path: String) -> Lexer {
-  Lexer(src:, pos: 0, file_path:)
+  Lexer(src:, pos: #(1, 1), file_path:)
 }
 
 pub fn lex(lexer: Lexer) -> Result(List(token.Token), error.Error) {
@@ -31,19 +31,25 @@ pub fn lex(lexer: Lexer) -> Result(List(token.Token), error.Error) {
 fn lex_(
   lexer: Lexer,
 ) -> Result(List(#(option.Option(token.TokenType), span.Span)), error.Error) {
-  let prev_len = string.length(lexer.src)
   use #(token_type, rest) <- result.try(lex_token(
     lexer.src,
     span.Span(start: lexer.pos, end: lexer.pos, file_path: lexer.file_path),
   ))
+  let assert Ok(#(grapheme, _)) = lexer.src |> string.pop_grapheme()
   let curr_len = string.length(rest)
-  let curr_pos = lexer.pos + { prev_len - curr_len }
-  let span =
-    span.Span(start: lexer.pos, end: curr_pos - 1, file_path: lexer.file_path)
+  let end = case grapheme {
+    "\n" -> #(lexer.pos.0 + 1, 1)
+    "\t" -> #(lexer.pos.0, lexer.pos.1 + 4)
+    _ -> #(
+      lexer.pos.0,
+      lexer.pos.1 + { string.length(lexer.src) - curr_len - 1 },
+    )
+  }
+  let span = span.Span(start: lexer.pos, end:, file_path: lexer.file_path)
   case curr_len {
     0 -> Ok([#(token_type, span)])
     _ -> {
-      use acc <- result.try(lex_(Lexer(..lexer, src: rest, pos: curr_pos)))
+      use acc <- result.try(lex_(Lexer(..lexer, src: rest, pos: end)))
       Ok([#(token_type, span), ..acc])
     }
   }
@@ -103,12 +109,12 @@ fn lex_token(
         })
         |> option.values()
       case funcs {
-        [] -> Error(error.UnexpectedChar(span: curr_pos))
+        [] -> Error(error.Error(error.UnexpectedChar, curr_pos))
         [func] -> {
           let #(token, rest) = func(src)
           Ok(#(option.Some(token), rest))
         }
-        _ -> Error(error.AmbigousTokenization(span: curr_pos))
+        _ -> Error(error.Error(error.AmbigousTokenization, curr_pos))
       }
     }
   }
