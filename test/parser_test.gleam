@@ -224,7 +224,7 @@ pub fn parse_span_test() -> Result(Nil, error.Error) {
             span.Span(#(1, 19), #(1, 25), ""),
           ),
         ]),
-        span.Span(#(1, 2), #(1, 26), ""),
+        span.Span(#(1, 1), #(1, 26), ""),
       ),
     ]),
   )

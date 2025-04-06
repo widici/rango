@@ -35,17 +35,19 @@ fn lex_(
     lexer.src,
     span.Span(start: lexer.pos, end: lexer.pos, file_path: lexer.file_path),
   ))
-  let assert Ok(#(grapheme, _)) = lexer.src |> string.pop_grapheme()
   let curr_len = string.length(rest)
+  let assert Ok(#(grapheme, _)) = lexer.src |> string.pop_grapheme()
   let end = case grapheme {
     "\n" -> #(lexer.pos.0 + 1, 1)
     "\t" -> #(lexer.pos.0, lexer.pos.1 + 4)
-    _ -> #(
-      lexer.pos.0,
-      lexer.pos.1 + { string.length(lexer.src) - curr_len - 1 },
-    )
+    _ -> #(lexer.pos.0, lexer.pos.1 + { string.length(lexer.src) - curr_len })
   }
-  let span = span.Span(start: lexer.pos, end:, file_path: lexer.file_path)
+  let span =
+    span.Span(
+      start: lexer.pos,
+      end: #(end.0, end.1 - 1),
+      file_path: lexer.file_path,
+    )
   case curr_len {
     0 -> Ok([#(token_type, span)])
     _ -> {
