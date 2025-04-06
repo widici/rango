@@ -18,6 +18,7 @@ gleam test  # Run the tests
 - [x] Lex regular identifiers
 - [x] Improve lexing of literals with the usage of regex
 - [x] Lex spans in source-code for tokens
+- [x] Lex column and row position for span instead of linear position
 
 ### Parser
 
@@ -41,6 +42,11 @@ gleam test  # Run the tests
 - [x] Compile function expressions
 - [x] Compile code chunk
 - [x] Compile return expressions
+- [ ] Compile variable expressions
+- [ ] Compile lists/arrays
+- [ ] Compile strings (charlists)
+- [ ] Compile if expressions
+- [ ] Add dynamic type checking for user defined functions through beam instructions
 
 ### Miscellaneous
 
