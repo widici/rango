@@ -146,7 +146,7 @@ fn compile_sexpr(
     }
     [#(ast.KeyWord(token.Cons), _), head, tail] ->
       compile_cons_expr(compiler, head, tail)
-    //[#(ast.KeyWord(token.List), _), ..exprs] -> compile_list(compiler, exprs)
+    [#(ast.KeyWord(token.List), _), ..exprs] -> compile_list(compiler, exprs)
     [#(ast.KeyWord(token.Var), _), #(ast.Ident(name), _), expr] ->
       compile_var_def_expr(compiler, name, expr)
     [
@@ -177,37 +177,52 @@ fn compile_sexpr(
   }
 }
 
-/// Will output: {put_list,{x,stack_size},{x,stack_size+1}{x,stack_size}}
+/// Compiles cons expressions to beam instructions
 fn compile_cons_expr(
   compiler: Compiler,
   head: ast.Expr,
   tail: ast.Expr,
 ) -> Result(Compiler, error.Error) {
   use compiler <- result.try(compile_exprs(compiler, [head, tail]))
+  Ok(compile_put_list(compiler))
+}
+
+fn compile_list(
+  compiler: Compiler,
+  exprs: List(ast.Expr),
+) -> Result(Compiler, error.Error) {
+  use compiler <- result.try(
+    exprs
+    |> list.fold(Ok(compiler), fn(compiler, expr) {
+      use compiler <- result.try(compiler)
+      use #(compiler, _) <- result.try(compile_expr(compiler, [expr]))
+      Ok(compiler)
+    }),
+  )
   Ok(
-    Compiler(
-      ..add_arg(compiler, arg.new() |> arg.add_opc(arg.PutList))
-      |> add_arg(
-        arg.new() |> arg.add_tag(arg.X) |> arg.int_opc(compiler.stack_size - 2),
-      )
-      |> add_arg(
-        arg.new() |> arg.add_tag(arg.X) |> arg.int_opc(compiler.stack_size - 1),
-      )
-      |> add_arg(
-        arg.new() |> arg.add_tag(arg.X) |> arg.int_opc(compiler.stack_size - 2),
-      ),
-      stack_size: compiler.stack_size - 1,
-    ),
+    list.fold(list.range(1, list.length(exprs) - 1), compiler, fn(compiler, _) {
+      compile_put_list(compiler)
+    }),
   )
 }
 
-//fn compile_list(
-//  compiler: Compiler,
-//  exprs: List(ast.Expr),
-//) -> Result(Compiler, error.Error) {
-//  use compiler <- result.try(compile_exprs(compiler, exprs))
-//  
-//}
+/// Uses a put_list beam instruction between the two latest registers defined
+/// Will output: {put_list,{x,stack_size-2},{x,stack_size-1}{x,stack_size-2}}
+fn compile_put_list(compiler: Compiler) -> Compiler {
+  Compiler(
+    ..add_arg(compiler, arg.new() |> arg.add_opc(arg.PutList))
+    |> add_arg(
+      arg.new() |> arg.add_tag(arg.X) |> arg.int_opc(compiler.stack_size - 2),
+    )
+    |> add_arg(
+      arg.new() |> arg.add_tag(arg.X) |> arg.int_opc(compiler.stack_size - 1),
+    )
+    |> add_arg(
+      arg.new() |> arg.add_tag(arg.X) |> arg.int_opc(compiler.stack_size - 2),
+    ),
+    stack_size: compiler.stack_size - 1,
+  )
+}
 
 /// Compiles variable definition expressions
 fn compile_var_def_expr(
