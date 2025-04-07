@@ -28,7 +28,7 @@ fn load() -> glint.Command(Nil) {
   let assert [path, ..] = args
   let assert [file_ident, ..dir_path] =
     string.split(path, "/") |> list.reverse()
-  let assert [file_name, _] = string.split(file_ident, ".") |> list.reverse()
+  let assert [file_name, _] = string.split(file_ident, ".")
   case build_src(path, file_name) {
     Ok(_) -> {
       add_path(
@@ -50,7 +50,7 @@ fn build() -> glint.Command(Nil) {
   use _, args, _ <- glint.command()
   let assert [path, ..] = args
   let assert [file_ident, ..] = string.split(path, "/") |> list.reverse()
-  let assert [file_name, _] = string.split(file_ident, ".") |> list.reverse()
+  let assert [file_name, _] = string.split(file_ident, ".")
   case build_src(path, file_name) {
     Ok(_) -> Nil
     Error(error) ->

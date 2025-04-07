@@ -40,7 +40,7 @@ pub type Compiler {
     imports: Imports,
     exports: Exports,
     label_count: Int,
-    params: dict.Dict(String, #(token.Type, Int)),
+    vars: dict.Dict(String, Int),
     module: String,
   )
 }
@@ -54,7 +54,7 @@ pub fn new(module: String) -> Compiler {
       imports: dict.new(),
       exports: dict.new(),
       label_count: 0,
-      params: dict.new(),
+      vars: dict.new(),
       module:,
     )
     |> get_atom_id(module)
@@ -110,15 +110,15 @@ fn compile_int(compiler: Compiler, contents: Int) -> Compiler {
   )
 }
 
-/// Compiles a param used in function body to beam instructions
+/// Compiles a variable used in function body to beam instructions
 /// Will output: {move,{x,name-index},{x,stack_size}}
 fn compile_var(
   compiler: Compiler,
   name: String,
   span: span.Span,
 ) -> Result(Compiler, error.Error) {
-  case compiler.params |> dict.get(name) {
-    Ok(#(_, index)) -> {
+  case compiler.vars |> dict.get(name) {
+    Ok(index) -> {
       Ok(
         Compiler(
           ..add_arg(compiler, arg.new() |> arg.add_opc(arg.Move))
@@ -144,8 +144,8 @@ fn compile_list(
       use compiler <- result.try(compile_list(compiler, list, span))
       compiler |> compile_exprs(rest)
     }
-    [#(ast.Op(operator), _), ..rest] ->
-      compile_arth_expr(compiler, operator, rest)
+    [#(ast.KeyWord(token.Var), _), #(ast.Ident(name), _), expr] ->
+      compile_var_def_expr(compiler, name, expr)
     [
       #(ast.KeyWord(token.Use), _),
       #(ast.Str(module), _),
@@ -154,6 +154,8 @@ fn compile_list(
     ] -> Ok(compile_use_expr(compiler, module, name, arity))
     [#(ast.KeyWord(token.Return), _), ..rest] ->
       compile_return_expr(compiler, rest)
+    [#(ast.Op(operator), _), ..rest] ->
+      compile_arth_expr(compiler, operator, rest)
     [
       #(ast.KeyWord(token.Func), _),
       #(ast.Ident(name), _),
@@ -170,6 +172,21 @@ fn compile_list(
         span,
       ))
   }
+}
+
+/// Compiles variable definition expressions
+fn compile_var_def_expr(
+  compiler: Compiler,
+  name: String,
+  expr: ast.Expr,
+) -> Result(Compiler, error.Error) {
+  use #(compiler, _) <- result.try(compile_expr(compiler, [expr]))
+  Ok(
+    Compiler(
+      ..compiler,
+      vars: compiler.vars |> dict.insert(name, compiler.stack_size - 1),
+    ),
+  )
 }
 
 /// Inserts foreign function's MFA to imports
@@ -277,11 +294,11 @@ fn compile_func_expr(
 ) -> Result(Compiler, error.Error) {
   let #(compiler, module_id) = compiler |> get_atom_id(compiler.module)
   let #(compiler, name_id) = compiler |> get_atom_id(name)
-  let param_names =
+  let vars =
     params
     |> dict.to_list()
     |> list.map(fn(x) {
-      let assert #(#(ast.Ident(name), _), index) = x
+      let assert #(#(ast.Ident(name), _), #(_, index)) = x
       #(name, index)
     })
     |> dict.from_list()
@@ -308,7 +325,7 @@ fn compile_func_expr(
         name_id,
         CompiledFunc(compiler.label_count + 2, dict.size(params)),
       ),
-    params: param_names,
+    vars:,
   )
   // TODO: check if this is valid for multiple exprs in body
   |> compile_exprs(body)

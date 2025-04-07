@@ -59,6 +59,8 @@ pub type KeyWord {
   Func
   /// ret
   Return
+  /// var
+  Var
 }
 
 pub type Type {

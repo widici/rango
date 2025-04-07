@@ -42,7 +42,7 @@ gleam test  # Run the tests
 - [x] Compile function expressions
 - [x] Compile code chunk
 - [x] Compile return expressions
-- [ ] Compile variable expressions
+- [x] Compile variable definition expressions
 - [ ] Compile lists/arrays
 - [ ] Compile strings (charlists)
 - [ ] Compile if expressions
