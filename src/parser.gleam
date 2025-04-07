@@ -53,7 +53,7 @@ fn parse_list(
     [#(token.RParen, span.Span(_, end, new_path)), ..rest] -> {
       let assert True = file_path == new_path
       Ok(#(
-        #(ast.List(acc |> list.reverse()), span.Span(start:, end:, file_path:)),
+        #(ast.Sexpr(acc |> list.reverse()), span.Span(start:, end:, file_path:)),
         rest,
       ))
     }

@@ -96,6 +96,8 @@ fn lex_token(
     "fn" <> rest -> Ok(#(option.Some(token.KeyWord(token.Func)), rest))
     "ret" <> rest -> Ok(#(option.Some(token.KeyWord(token.Return)), rest))
     "var" <> rest -> Ok(#(option.Some(token.KeyWord(token.Var)), rest))
+    "list" <> rest -> Ok(#(option.Some(token.KeyWord(token.List)), rest))
+    "cons" <> rest -> Ok(#(option.Some(token.KeyWord(token.Cons)), rest))
     "\"" <> rest -> {
       let #(token, rest) = lex_str(rest)
       Ok(#(option.Some(token), rest))

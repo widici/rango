@@ -84,8 +84,8 @@ fn compile_expr(
       use compiler <- result.try(compile_var(compiler, name, span))
       Ok(#(compiler, rest))
     }
-    [#(ast.List(list), span), ..rest] -> {
-      use compiler <- result.try(compile_list(compiler, list, span))
+    [#(ast.Sexpr(list), span), ..rest] -> {
+      use compiler <- result.try(compile_sexpr(compiler, list, span))
       Ok(#(compiler, rest))
     }
     _ -> {
@@ -134,16 +134,19 @@ fn compile_var(
   }
 }
 
-fn compile_list(
+fn compile_sexpr(
   compiler: Compiler,
   list: List(ast.Expr),
   span: span.Span,
 ) -> Result(Compiler, error.Error) {
   case list {
-    [#(ast.List(list), _), ..rest] -> {
-      use compiler <- result.try(compile_list(compiler, list, span))
+    [#(ast.Sexpr(list), _), ..rest] -> {
+      use compiler <- result.try(compile_sexpr(compiler, list, span))
       compiler |> compile_exprs(rest)
     }
+    [#(ast.KeyWord(token.Cons), _), head, tail] ->
+      compile_cons_expr(compiler, head, tail)
+    //[#(ast.KeyWord(token.List), _), ..exprs] -> compile_list(compiler, exprs)
     [#(ast.KeyWord(token.Var), _), #(ast.Ident(name), _), expr] ->
       compile_var_def_expr(compiler, name, expr)
     [
@@ -161,7 +164,7 @@ fn compile_list(
       #(ast.Ident(name), _),
       #(ast.Params(params), _),
       #(ast.Type(_ret_type), _),
-      #(ast.List(body), _),
+      #(ast.Sexpr(body), _),
     ] -> compile_func_expr(compiler, name, params, body)
     _ ->
       Error(error.Error(
@@ -173,6 +176,38 @@ fn compile_list(
       ))
   }
 }
+
+/// Will output: {put_list,{x,stack_size},{x,stack_size+1}{x,stack_size}}
+fn compile_cons_expr(
+  compiler: Compiler,
+  head: ast.Expr,
+  tail: ast.Expr,
+) -> Result(Compiler, error.Error) {
+  use compiler <- result.try(compile_exprs(compiler, [head, tail]))
+  Ok(
+    Compiler(
+      ..add_arg(compiler, arg.new() |> arg.add_opc(arg.PutList))
+      |> add_arg(
+        arg.new() |> arg.add_tag(arg.X) |> arg.int_opc(compiler.stack_size - 2),
+      )
+      |> add_arg(
+        arg.new() |> arg.add_tag(arg.X) |> arg.int_opc(compiler.stack_size - 1),
+      )
+      |> add_arg(
+        arg.new() |> arg.add_tag(arg.X) |> arg.int_opc(compiler.stack_size - 2),
+      ),
+      stack_size: compiler.stack_size - 1,
+    ),
+  )
+}
+
+//fn compile_list(
+//  compiler: Compiler,
+//  exprs: List(ast.Expr),
+//) -> Result(Compiler, error.Error) {
+//  use compiler <- result.try(compile_exprs(compiler, exprs))
+//  
+//}
 
 /// Compiles variable definition expressions
 fn compile_var_def_expr(

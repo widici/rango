@@ -43,7 +43,8 @@ gleam test  # Run the tests
 - [x] Compile code chunk
 - [x] Compile return expressions
 - [x] Compile variable definition expressions
-- [ ] Compile lists/arrays
+- [x] Compile cons expressions
+- [ ] Compile lists
 - [ ] Compile strings (charlists)
 - [ ] Compile if expressions
 - [ ] Add dynamic type checking for user defined functions through beam instructions

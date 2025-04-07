@@ -61,6 +61,10 @@ pub type KeyWord {
   Return
   /// var
   Var
+  /// list
+  List
+  /// cons
+  Cons
 }
 
 pub type Type {

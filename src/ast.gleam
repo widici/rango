@@ -12,8 +12,8 @@ pub type ExprType {
   Op(token.Op)
   KeyWord(token.KeyWord)
   Ident(String)
-  List(List(Expr))
-  //Params(List(#(token.Type, Expr)))
+  Sexpr(List(Expr))
+  //Params(Sexpr(#(token.Type, Expr)))
   Params(dict.Dict(Expr, #(token.Type, Int)))
   Type(token.Type)
 }

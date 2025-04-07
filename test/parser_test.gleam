@@ -21,7 +21,7 @@ pub fn int_arith_parse_test() {
       token.RParen,
     ]
     |> parse_test_helper([
-      ast.List([
+      ast.Sexpr([
         #(ast.Op(token.Add), span.empty()),
         #(ast.Int(1), span.empty()),
         #(ast.Int(1), span.empty()),
@@ -42,11 +42,11 @@ pub fn int_arith_parse_test() {
       token.RParen,
     ]
     |> parse_test_helper([
-      ast.List([
+      ast.Sexpr([
         #(ast.Op(token.Mul), span.empty()),
         #(ast.Int(2), span.empty()),
         #(
-          ast.List([
+          ast.Sexpr([
             #(ast.Op(token.Add), span.empty()),
             #(ast.Int(1), span.empty()),
             #(ast.Int(1), span.empty()),
@@ -73,14 +73,14 @@ pub fn int_arith_parse_test() {
       token.RParen,
     ]
     |> parse_test_helper([
-      ast.List([
+      ast.Sexpr([
         #(ast.Op(token.Add), span.empty()),
         #(
-          ast.List([
+          ast.Sexpr([
             #(ast.Op(token.Div), span.empty()),
             #(ast.Int(2), span.empty()),
             #(
-              ast.List([
+              ast.Sexpr([
                 #(ast.Op(token.Sub), span.empty()),
                 #(ast.Int(321), span.empty()),
                 #(ast.Int(9), span.empty()),
@@ -106,10 +106,10 @@ pub fn int_arith_parse_test() {
     token.RParen,
   ]
   |> parse_test_helper([
-    ast.List([
+    ast.Sexpr([
       #(ast.Op(token.Mul), span.empty()),
       #(
-        ast.List([
+        ast.Sexpr([
           #(ast.Op(token.Add), span.empty()),
           #(ast.Int(1), span.empty()),
           #(ast.Int(1), span.empty()),
@@ -141,7 +141,7 @@ pub fn parse_func_test() {
       token.RParen,
     ]
     |> parse_test_helper([
-      ast.List([
+      ast.Sexpr([
         #(ast.KeyWord(token.Func), span.empty()),
         #(ast.Ident("add"), span.empty()),
         #(
@@ -155,7 +155,7 @@ pub fn parse_func_test() {
         ),
         #(ast.Type(token.IntType), span.empty()),
         #(
-          ast.List([
+          ast.Sexpr([
             #(ast.Op(token.Add), span.empty()),
             #(ast.Int(1), span.empty()),
             #(ast.Int(2), span.empty()),
@@ -177,7 +177,7 @@ pub fn parse_func_test() {
     token.RParen,
   ]
   |> parse_test_helper([
-    ast.List([
+    ast.Sexpr([
       #(ast.KeyWord(token.Func), span.empty()),
       #(ast.Ident("f"), span.empty()),
       #(ast.Params(dict.new()), span.empty()),
@@ -197,7 +197,7 @@ pub fn parse_span_test() -> Result(Nil, error.Error) {
   |> should.equal(
     Ok([
       #(
-        ast.List([
+        ast.Sexpr([
           #(ast.KeyWord(token.Func), span.Span(#(1, 2), #(1, 3), "")),
           #(ast.Ident("add"), span.Span(#(1, 5), #(1, 7), "")),
           #(
@@ -216,7 +216,7 @@ pub fn parse_span_test() -> Result(Nil, error.Error) {
             span.Span(#(1, 9), #(1, 17), ""),
           ),
           #(
-            ast.List([
+            ast.Sexpr([
               #(ast.Op(token.Add), span.Span(#(1, 20), #(1, 20), "")),
               #(ast.Ident("a"), span.Span(#(1, 22), #(1, 22), "")),
               #(ast.Ident("b"), span.Span(#(1, 24), #(1, 24), "")),

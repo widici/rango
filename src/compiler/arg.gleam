@@ -12,6 +12,7 @@ pub type OpCode {
   IntCodeEnd
   Return
   Move
+  PutList
   GcBif2
 }
 
@@ -57,6 +58,7 @@ pub fn add_opc(arg: Arg, opcode: OpCode) -> Arg {
       IntCodeEnd -> 3
       Return -> 19
       Move -> 64
+      PutList -> 69
       GcBif2 -> 125
     }),
   )
