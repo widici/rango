@@ -10,6 +10,9 @@ pub type OpCode {
   Label
   FuncInfo
   IntCodeEnd
+  Call
+  Allocate
+  Deallocate
   Return
   Move
   PutList
@@ -26,6 +29,8 @@ pub type Tag {
   A
   /// X register
   X
+  /// Y register
+  Y
   /// Label
   F
 }
@@ -43,6 +48,7 @@ pub fn add_tag(arg: Arg, tag: Tag) -> Arg {
       I -> 1
       A -> 2
       X -> 3
+      Y -> 4
       F -> 5
     }),
   )
@@ -56,6 +62,9 @@ pub fn add_opc(arg: Arg, opcode: OpCode) -> Arg {
       Label -> 1
       FuncInfo -> 2
       IntCodeEnd -> 3
+      Call -> 4
+      Allocate -> 12
+      Deallocate -> 18
       Return -> 19
       Move -> 64
       PutList -> 69

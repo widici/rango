@@ -144,6 +144,8 @@ fn compile_sexpr(
       use compiler <- result.try(compile_sexpr(compiler, list, span))
       compiler |> compile_exprs(rest)
     }
+    [#(ast.Ident(name), _), ..params] ->
+      compile_call_expr(compiler, name, params)
     [#(ast.KeyWord(token.Cons), _), head, tail] ->
       compile_cons_expr(compiler, head, tail)
     [#(ast.KeyWord(token.List), _), ..exprs] -> compile_list(compiler, exprs)
@@ -177,6 +179,65 @@ fn compile_sexpr(
   }
 }
 
+/// Compiles internally defined function calls to beam instructions
+/// Will output: (for a func w/ a arity of 1)
+/// {allocate,1,stack_size}
+/// {move,{x,0},{y,0}}
+/// {move,{x,stack_size-1},{x,0}}
+/// {call,arity,{f,label}}
+/// {move,{x,0},{x,stack_size}}
+/// {move,{y,0},{x,0}}
+/// {deallocate,1}
+fn compile_call_expr(
+  compiler: Compiler,
+  name: String,
+  params: List(ast.Expr),
+) -> Result(Compiler, error.Error) {
+  use compiler <- result.try(compile_exprs(compiler, params))
+  let #(compiler, atom_id) = get_atom_id(compiler, name)
+  let assert Ok(CompiledFunc(label, arity)) =
+    dict.get(compiler.exports, atom_id)
+  let assert True = arity == list.length(params)
+  let compiler =
+    add_arg(compiler, arg.new() |> arg.add_opc(arg.Allocate))
+    |> add_arg(arg.new() |> arg.add_tag(arg.U) |> arg.int_opc(1))
+    |> add_arg(
+      arg.new() |> arg.add_tag(arg.U) |> arg.int_opc(compiler.stack_size),
+    )
+  let compiler =
+    list.range(0, arity - 1)
+    |> list.fold(compiler, fn(compiler, i) {
+      add_arg(compiler, arg.new() |> arg.add_opc(arg.Move))
+      |> add_arg(arg.new() |> arg.add_tag(arg.X) |> arg.int_opc(i))
+      |> add_arg(arg.new() |> arg.add_tag(arg.Y) |> arg.int_opc(i))
+      |> add_arg(arg.new() |> arg.add_opc(arg.Move))
+      |> add_arg(
+        arg.new()
+        |> arg.add_tag(arg.X)
+        |> arg.int_opc(compiler.stack_size - i - 1),
+      )
+      |> add_arg(arg.new() |> arg.add_tag(arg.X) |> arg.int_opc(i))
+    })
+    |> add_arg(arg.new() |> arg.add_opc(arg.Call))
+    |> add_arg(arg.new() |> arg.int_tag(arity))
+    |> add_arg(arg.new() |> arg.add_tag(arg.F) |> arg.int_opc(label))
+    |> add_arg(arg.new() |> arg.add_opc(arg.Move))
+    |> add_arg(arg.new() |> arg.add_tag(arg.X) |> arg.int_opc(0))
+    |> add_arg(
+      arg.new() |> arg.add_tag(arg.X) |> arg.int_opc(compiler.stack_size),
+    )
+  let compiler =
+    list.range(0, arity - 1)
+    |> list.fold(compiler, fn(compiler, i) {
+      add_arg(compiler, arg.new() |> arg.add_opc(arg.Move))
+      |> add_arg(arg.new() |> arg.add_tag(arg.Y) |> arg.int_opc(i))
+      |> add_arg(arg.new() |> arg.add_tag(arg.X) |> arg.int_opc(i))
+    })
+    |> add_arg(arg.new() |> arg.add_opc(arg.Deallocate))
+    |> add_arg(arg.new() |> arg.add_tag(arg.U) |> arg.int_opc(1))
+  Ok(Compiler(..compiler, stack_size: compiler.stack_size + 1))
+}
+
 /// Compiles cons expressions to beam instructions
 fn compile_cons_expr(
   compiler: Compiler,
@@ -187,6 +248,8 @@ fn compile_cons_expr(
   Ok(compile_put_list(compiler))
 }
 
+/// Compiles list expression to beam instruction
+/// (list 1 2 3) expression is equivalent of (cons 1 (cons 2 3)) expression
 fn compile_list(
   compiler: Compiler,
   exprs: List(ast.Expr),
@@ -352,7 +415,6 @@ fn compile_func_expr(
       #(name, index)
     })
     |> dict.from_list()
-
   Compiler(
     ..add_arg(compiler, arg.new() |> arg.add_opc(arg.Label))
     |> add_arg(

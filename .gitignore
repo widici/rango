@@ -5,3 +5,4 @@ erl_crash.dump
 /misc
 test.beam
 test.lisp
+example.txt
