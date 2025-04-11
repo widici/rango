@@ -3,6 +3,8 @@ import compiler/arg
 import error
 import gleam/bytes_tree
 import gleam/dict
+import gleam/int
+import gleam/io
 import gleam/list
 import gleam/result
 import span
@@ -145,7 +147,7 @@ fn compile_sexpr(
       compiler |> compile_exprs(rest)
     }
     [#(ast.Ident(name), _), ..params] ->
-      compile_call_expr(compiler, name, params)
+      compile_call_expr(compiler, name, params, span)
     [#(ast.KeyWord(token.Cons), _), head, tail] ->
       compile_cons_expr(compiler, head, tail)
     [#(ast.KeyWord(token.List), _), ..exprs] -> compile_list(compiler, exprs)
@@ -179,7 +181,7 @@ fn compile_sexpr(
   }
 }
 
-/// Compiles internally defined function calls to beam instructions
+/// Compiles internally defined function call to beam instructions
 /// Will output: (for a func w/ a arity of 1)
 /// {allocate,1,stack_size}
 /// {move,{x,0},{y,0}}
@@ -192,20 +194,28 @@ fn compile_call_expr(
   compiler: Compiler,
   name: String,
   params: List(ast.Expr),
+  span: span.Span,
 ) -> Result(Compiler, error.Error) {
   use compiler <- result.try(compile_exprs(compiler, params))
   let #(compiler, atom_id) = get_atom_id(compiler, name)
   let assert Ok(CompiledFunc(label, arity)) =
     dict.get(compiler.exports, atom_id)
-  let assert True = arity == list.length(params)
+  use _ <- result.try(case arity == list.length(params) {
+    True -> Ok(Nil)
+    False ->
+      Error(error.Error(error.InvalidArity(list.length(params), arity), span))
+  })
+  io.debug(arity)
+  let range = list.range(0, int.max(arity - 1, 0))
+  io.debug(range)
   let compiler =
     add_arg(compiler, arg.new() |> arg.add_opc(arg.Allocate))
-    |> add_arg(arg.new() |> arg.add_tag(arg.U) |> arg.int_opc(1))
+    |> add_arg(arg.new() |> arg.add_tag(arg.U) |> arg.int_opc(arity))
     |> add_arg(
       arg.new() |> arg.add_tag(arg.U) |> arg.int_opc(compiler.stack_size),
     )
   let compiler =
-    list.range(0, arity - 1)
+    range
     |> list.fold(compiler, fn(compiler, i) {
       add_arg(compiler, arg.new() |> arg.add_opc(arg.Move))
       |> add_arg(arg.new() |> arg.add_tag(arg.X) |> arg.int_opc(i))
@@ -227,14 +237,14 @@ fn compile_call_expr(
       arg.new() |> arg.add_tag(arg.X) |> arg.int_opc(compiler.stack_size),
     )
   let compiler =
-    list.range(0, arity - 1)
+    range
     |> list.fold(compiler, fn(compiler, i) {
       add_arg(compiler, arg.new() |> arg.add_opc(arg.Move))
       |> add_arg(arg.new() |> arg.add_tag(arg.Y) |> arg.int_opc(i))
       |> add_arg(arg.new() |> arg.add_tag(arg.X) |> arg.int_opc(i))
     })
     |> add_arg(arg.new() |> arg.add_opc(arg.Deallocate))
-    |> add_arg(arg.new() |> arg.add_tag(arg.U) |> arg.int_opc(1))
+    |> add_arg(arg.new() |> arg.add_tag(arg.U) |> arg.int_opc(arity))
   Ok(Compiler(..compiler, stack_size: compiler.stack_size + 1))
 }
 

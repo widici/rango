@@ -1,4 +1,5 @@
 import ast
+import gleam/int
 import pprint
 import report
 import simplifile
@@ -16,6 +17,7 @@ pub type ErrorType {
   NotFound(name: String)
   UnexpectedList(list: List(ast.ExprType))
   UnexpectedExpr(expr_type: ast.ExprType)
+  InvalidArity(found: Int, expected: Int)
 }
 
 pub fn to_string(error: Error) -> String {
@@ -42,6 +44,13 @@ pub fn to_string(error: Error) -> String {
     )
     UnexpectedExpr(expr) -> #(
       "Expr: " <> pprint.format(expr) <> " in the context",
+      [],
+    )
+    InvalidArity(found, expected) -> #(
+      "Unexpected arity, function expected arity: "
+        <> int.to_string(expected)
+        <> " caller used arity: "
+        <> int.to_string(found),
       [],
     )
   }
