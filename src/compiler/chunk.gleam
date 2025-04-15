@@ -60,9 +60,10 @@ fn compile_import_chunk(
     bytes_tree.from_bit_array(<<dict.size(compiler.imports):big-size(32)>>)
     |> bytes_tree.append(
       compiler.imports
-      |> dict.keys()
+      |> dict.to_list()
+      |> list.sort(fn(a, b) { int.compare(a.1, b.1) })
       |> list.map(fn(x) {
-        let #(module, name, arity) = x
+        let #(#(module, name, arity), _) = x
         <<module:big-size(32), name:big-size(32), arity:big-size(32)>>
       })
       |> bit_array.concat(),
@@ -122,7 +123,7 @@ fn compile_export_chunk(
       compiler.exports
       |> dict.to_list()
       |> list.map(fn(x) {
-        let #(name, compiler.CompiledFunc(label, arity)) = x
+        let #(#(name, arity), label) = x
         <<name:big-size(32), arity:big-size(32), label:big-size(32)>>
       })
       |> bit_array.concat(),

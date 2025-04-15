@@ -1,5 +1,4 @@
 import ast
-import gleam/int
 import pprint
 import report
 import simplifile
@@ -17,7 +16,10 @@ pub type ErrorType {
   NotFound(name: String)
   UnexpectedList(list: List(ast.ExprType))
   UnexpectedExpr(expr_type: ast.ExprType)
-  InvalidArity(found: Int, expected: Int)
+  AmbigousCall(name: String, arity: Int)
+  MissingFunc(name: String, arity: Int)
+  RedundantImporting(module: String, name: String, arity: Int)
+  ImportConflict(module: String, name: String, arity: Int)
 }
 
 pub fn to_string(error: Error) -> String {
@@ -46,13 +48,52 @@ pub fn to_string(error: Error) -> String {
       "Expr: " <> pprint.format(expr) <> " in the context",
       [],
     )
-    InvalidArity(found, expected) -> #(
-      "Unexpected arity, function expected arity: "
-        <> int.to_string(expected)
-        <> " caller used arity: "
-        <> int.to_string(found),
-      [],
-    )
+    AmbigousCall(name, arity) -> #("Ambigous function call used", [
+      report.Text(
+        "Function "
+        <> name
+        <> ":"
+        <> pprint.format(arity)
+        <> " fits the criteria of multiple different functions",
+      ),
+    ])
+    MissingFunc(name, arity) -> #("Missing function called", [
+      report.Text(
+        "Function "
+        <> name
+        <> ":"
+        <> pprint.format(arity)
+        <> " is missing and therefore can't be called",
+      ),
+    ])
+    RedundantImporting(module, name, arity) -> #("Redundant function import", [
+      report.Text(
+        "Function "
+        <> module
+        <> "/"
+        <> name
+        <> ":"
+        <> pprint.format(arity)
+        <> " is already imported",
+      ),
+    ])
+    ImportConflict(module, name, arity) -> #("Import conflict occured", [
+      report.Text(
+        "Function "
+        <> module
+        <> "/"
+        <> name
+        <> ":"
+        <> pprint.format(arity)
+        <> " caused an import conflict",
+      ),
+      report.Text(
+        "Help: Change or remove other imports w/ the signature "
+        <> name
+        <> ":"
+        <> pprint.format(arity),
+      ),
+    ])
   }
   let labels = [
     report.primary_label("found here", error.span.start, error.span.end),

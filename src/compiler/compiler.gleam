@@ -4,7 +4,6 @@ import error
 import gleam/bytes_tree
 import gleam/dict
 import gleam/int
-import gleam/io
 import gleam/list
 import gleam/result
 import span
@@ -16,18 +15,13 @@ pub type ForeignFunc {
   ForeignFunc(module: String, name: String, arity: Int)
 }
 
-/// Maps function signature of foreign function to its corresponding id
+/// Maps function signature of foreign function to its index
 pub type Imports =
   dict.Dict(#(Int, Int, Int), Int)
 
-/// Used for representing the metadata (label & arity) of native compiled functions
-pub type CompiledFunc {
-  CompiledFunc(label: Int, arity: Int)
-}
-
-/// Maps the id of a compiled function to its metadata
+/// Maps the id and arity of a compiled function to its label
 pub type Exports =
-  dict.Dict(Int, CompiledFunc)
+  dict.Dict(#(Int, Int), Int)
 
 /// Maps an atom represented by a string to its corresponding id
 /// Using a Dict here instead of a List should provide a better time-compexity in Gleam
@@ -158,7 +152,7 @@ fn compile_sexpr(
       #(ast.Str(module), _),
       #(ast.Str(name), _),
       #(ast.Int(arity), _),
-    ] -> Ok(compile_use_expr(compiler, module, name, arity))
+    ] -> compile_use_expr(compiler, module, name, arity, span)
     [#(ast.KeyWord(token.Return), _), ..rest] ->
       compile_return_expr(compiler, rest)
     [#(ast.Op(operator), _), ..rest] ->
@@ -179,73 +173,6 @@ fn compile_sexpr(
         span,
       ))
   }
-}
-
-/// Compiles internally defined function call to beam instructions
-/// Will output: (for a func w/ a arity of 1)
-/// {allocate,1,stack_size}
-/// {move,{x,0},{y,0}}
-/// {move,{x,stack_size-1},{x,0}}
-/// {call,arity,{f,label}}
-/// {move,{x,0},{x,stack_size}}
-/// {move,{y,0},{x,0}}
-/// {deallocate,1}
-fn compile_call_expr(
-  compiler: Compiler,
-  name: String,
-  params: List(ast.Expr),
-  span: span.Span,
-) -> Result(Compiler, error.Error) {
-  use compiler <- result.try(compile_exprs(compiler, params))
-  let #(compiler, atom_id) = get_atom_id(compiler, name)
-  let assert Ok(CompiledFunc(label, arity)) =
-    dict.get(compiler.exports, atom_id)
-  use _ <- result.try(case arity == list.length(params) {
-    True -> Ok(Nil)
-    False ->
-      Error(error.Error(error.InvalidArity(list.length(params), arity), span))
-  })
-  io.debug(arity)
-  let range = list.range(0, int.max(arity - 1, 0))
-  io.debug(range)
-  let compiler =
-    add_arg(compiler, arg.new() |> arg.add_opc(arg.Allocate))
-    |> add_arg(arg.new() |> arg.add_tag(arg.U) |> arg.int_opc(arity))
-    |> add_arg(
-      arg.new() |> arg.add_tag(arg.U) |> arg.int_opc(compiler.stack_size),
-    )
-  let compiler =
-    range
-    |> list.fold(compiler, fn(compiler, i) {
-      add_arg(compiler, arg.new() |> arg.add_opc(arg.Move))
-      |> add_arg(arg.new() |> arg.add_tag(arg.X) |> arg.int_opc(i))
-      |> add_arg(arg.new() |> arg.add_tag(arg.Y) |> arg.int_opc(i))
-      |> add_arg(arg.new() |> arg.add_opc(arg.Move))
-      |> add_arg(
-        arg.new()
-        |> arg.add_tag(arg.X)
-        |> arg.int_opc(compiler.stack_size - i - 1),
-      )
-      |> add_arg(arg.new() |> arg.add_tag(arg.X) |> arg.int_opc(i))
-    })
-    |> add_arg(arg.new() |> arg.add_opc(arg.Call))
-    |> add_arg(arg.new() |> arg.int_tag(arity))
-    |> add_arg(arg.new() |> arg.add_tag(arg.F) |> arg.int_opc(label))
-    |> add_arg(arg.new() |> arg.add_opc(arg.Move))
-    |> add_arg(arg.new() |> arg.add_tag(arg.X) |> arg.int_opc(0))
-    |> add_arg(
-      arg.new() |> arg.add_tag(arg.X) |> arg.int_opc(compiler.stack_size),
-    )
-  let compiler =
-    range
-    |> list.fold(compiler, fn(compiler, i) {
-      add_arg(compiler, arg.new() |> arg.add_opc(arg.Move))
-      |> add_arg(arg.new() |> arg.add_tag(arg.Y) |> arg.int_opc(i))
-      |> add_arg(arg.new() |> arg.add_tag(arg.X) |> arg.int_opc(i))
-    })
-    |> add_arg(arg.new() |> arg.add_opc(arg.Deallocate))
-    |> add_arg(arg.new() |> arg.add_tag(arg.U) |> arg.int_opc(arity))
-  Ok(Compiler(..compiler, stack_size: compiler.stack_size + 1))
 }
 
 /// Compiles cons expressions to beam instructions
@@ -312,14 +239,15 @@ fn compile_var_def_expr(
   )
 }
 
-/// Inserts foreign function's MFA to imports
+/// Inserts foreign function to imports
 fn compile_use_expr(
   compiler: Compiler,
   module: String,
   name: String,
   arity: Int,
-) -> Compiler {
-  add_func_id(compiler, ForeignFunc(module, name, arity))
+  span: span.Span,
+) -> Result(Compiler, error.Error) {
+  add_func_id(compiler, ForeignFunc(module, name, arity), span)
 }
 
 /// Returns evaluation of exprs from function
@@ -343,6 +271,105 @@ fn compile_return_expr(
   )
 }
 
+fn compile_call_expr(
+  compiler: Compiler,
+  name: String,
+  params: List(ast.Expr),
+  span: span.Span,
+) -> Result(Compiler, error.Error) {
+  use compiler <- result.try(compile_exprs(compiler, params))
+  let #(compiler, name_id) = get_atom_id(compiler, name)
+  let arity = list.length(params)
+  let external =
+    dict.filter(compiler.imports, fn(key, _) {
+      key.1 == name_id && key.2 == arity
+    })
+    |> dict.values()
+  use _ <- result.try(case list.length(external) {
+    x if x > 1 -> Error(error.Error(error.AmbigousCall(name, arity), span))
+    _ -> Ok(Nil)
+  })
+  let external = list.first(external)
+  let local = dict.get(compiler.exports, #(name_id, arity))
+  case external, local {
+    Error(_), Ok(label) -> Ok(compile_local_func(compiler, arity, label))
+    Ok(index), Error(_) -> Ok(compile_external_func(compiler, arity, index))
+    Ok(_), Ok(_) -> Error(error.Error(error.AmbigousCall(name, arity), span))
+    Error(_), Error(_) ->
+      Error(error.Error(error.MissingFunc(name, arity), span))
+  }
+}
+
+fn compile_local_func(compiler: Compiler, arity: Int, label: Int) -> Compiler {
+  compile_call(compiler, arity, fn(compiler) {
+    add_arg(compiler, arg.new() |> arg.add_opc(arg.Call))
+    |> add_arg(arg.new() |> arg.add_tag(arg.U) |> arg.int_tag(arity))
+    |> add_arg(arg.new() |> arg.add_tag(arg.F) |> arg.int_opc(label))
+  })
+}
+
+fn compile_external_func(compiler: Compiler, arity: Int, index: Int) -> Compiler {
+  // TODO: Fix issues when index isn't 0
+  compile_call(compiler, arity, fn(compiler) {
+    add_arg(compiler, arg.new() |> arg.add_opc(arg.CallExt))
+    |> add_arg(arg.new() |> arg.add_tag(arg.U) |> arg.int_tag(arity))
+    |> add_arg(arg.new() |> arg.add_tag(arg.U) |> arg.int_tag(index))
+  })
+}
+
+/// Compiles function call to beam instructions
+/// Will output: (for a func w/ a arity of 1)
+/// {allocate,1,stack_size}
+/// {move,{x,0},{y,0}}
+/// {move,{x,stack_size-1},{x,0}}
+/// func()
+/// {move,{x,0},{x,stack_size}}
+/// {move,{y,0},{x,0}}
+/// {deallocate,1}
+fn compile_call(
+  compiler: Compiler,
+  arity: Int,
+  func: fn(Compiler) -> Compiler,
+) -> Compiler {
+  let range = list.range(0, int.max(arity - 1, 0))
+  let compiler =
+    add_arg(compiler, arg.new() |> arg.add_opc(arg.Allocate))
+    |> add_arg(arg.new() |> arg.add_tag(arg.U) |> arg.int_opc(arity))
+    |> add_arg(
+      arg.new() |> arg.add_tag(arg.U) |> arg.int_opc(compiler.stack_size),
+    )
+  let compiler =
+    range
+    |> list.fold(compiler, fn(compiler, i) {
+      add_arg(compiler, arg.new() |> arg.add_opc(arg.Move))
+      |> add_arg(arg.new() |> arg.add_tag(arg.X) |> arg.int_opc(i))
+      |> add_arg(arg.new() |> arg.add_tag(arg.Y) |> arg.int_opc(i))
+      |> add_arg(arg.new() |> arg.add_opc(arg.Move))
+      |> add_arg(
+        arg.new()
+        |> arg.add_tag(arg.X)
+        |> arg.int_opc(compiler.stack_size - i - 1),
+      )
+      |> add_arg(arg.new() |> arg.add_tag(arg.X) |> arg.int_opc(i))
+    })
+    |> func()
+    |> add_arg(arg.new() |> arg.add_opc(arg.Move))
+    |> add_arg(arg.new() |> arg.add_tag(arg.X) |> arg.int_opc(0))
+    |> add_arg(
+      arg.new() |> arg.add_tag(arg.X) |> arg.int_opc(compiler.stack_size),
+    )
+  let compiler =
+    range
+    |> list.fold(compiler, fn(compiler, i) {
+      add_arg(compiler, arg.new() |> arg.add_opc(arg.Move))
+      |> add_arg(arg.new() |> arg.add_tag(arg.Y) |> arg.int_opc(i))
+      |> add_arg(arg.new() |> arg.add_tag(arg.X) |> arg.int_opc(i))
+    })
+    |> add_arg(arg.new() |> arg.add_opc(arg.Deallocate))
+    |> add_arg(arg.new() |> arg.add_tag(arg.U) |> arg.int_opc(arity))
+  Compiler(..compiler, stack_size: compiler.stack_size + 1)
+}
+
 /// Compiles arithmetic expressions to beam instructions
 /// Will output: {gc_bif,operator,{f,0},2,[{x,stack_size},{x,stack_size+1},{x,stack_size}]}
 /// ### Safety
@@ -364,7 +391,6 @@ fn compile_arth_expr(
       |> arg.add_tag(arg.U)
       |> arg.int_opc(2),
     )
-
   let assert #(compiler, Ok(id)) =
     resolve_func_id(
       compiler,
@@ -380,7 +406,6 @@ fn compile_arth_expr(
         arity: 2,
       ),
     )
-
   let compiler =
     add_arg(compiler, arg.new() |> arg.add_tag(arg.U) |> arg.int_opc(id))
     |> add_arg(
@@ -443,10 +468,7 @@ fn compile_func_expr(
     stack_size: dict.size(params),
     label_count: compiler.label_count + 2,
     exports: compiler.exports
-      |> dict.insert(
-        name_id,
-        CompiledFunc(compiler.label_count + 2, dict.size(params)),
-      ),
+      |> dict.insert(#(name_id, dict.size(params)), compiler.label_count + 2),
     vars:,
   )
   // TODO: check if this is valid for multiple exprs in body
@@ -492,15 +514,42 @@ fn resolve_func_id(
   #(compiler, signature |> dict.get(compiler.imports, _))
 }
 
-fn add_func_id(compiler: Compiler, func: ForeignFunc) -> Compiler {
+fn add_func_id(
+  compiler: Compiler,
+  func: ForeignFunc,
+  span: span.Span,
+) -> Result(Compiler, error.Error) {
   let #(compiler, signature) = resolve_func_sig(compiler, func)
-  let assert False = dict.has_key(compiler.imports, signature)
-  Compiler(
-    ..compiler,
-    imports: dict.insert(
-      compiler.imports,
-      signature,
-      compiler.imports |> dict.size(),
+  use _ <- result.try(case dict.has_key(compiler.imports, signature) {
+    True ->
+      Error(error.Error(
+        error.RedundantImporting(func.module, func.name, func.arity),
+        span,
+      ))
+    False -> Ok(Nil)
+  })
+  let #(compiler, name_id) = get_atom_id(compiler, func.name)
+  use _ <- result.try(case
+    dict.filter(compiler.imports, fn(key, _) {
+      key.1 == name_id && key.2 == func.arity
+    })
+    |> dict.size()
+  {
+    x if x == 0 -> Ok(Nil)
+    _ ->
+      Error(error.Error(
+        error.ImportConflict(func.module, func.name, func.arity),
+        span,
+      ))
+  })
+  Ok(
+    Compiler(
+      ..compiler,
+      imports: dict.insert(
+        compiler.imports,
+        signature,
+        compiler.imports |> dict.size(),
+      ),
     ),
   )
 }

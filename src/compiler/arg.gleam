@@ -11,6 +11,7 @@ pub type OpCode {
   FuncInfo
   IntCodeEnd
   Call
+  CallExt
   Allocate
   Deallocate
   Return
@@ -63,6 +64,7 @@ pub fn add_opc(arg: Arg, opcode: OpCode) -> Arg {
       FuncInfo -> 2
       IntCodeEnd -> 3
       Call -> 4
+      CallExt -> 7
       Allocate -> 12
       Deallocate -> 18
       Return -> 19

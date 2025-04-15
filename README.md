@@ -44,7 +44,9 @@ gleam test  # Run the tests
 - [x] Compile return expressions
 - [x] Compile variable definition expressions
 - [x] Compile cons expressions
-- [ ] Compile lists
+- [x] Compile lists
+- [x] Compile internal/local function calls
+- [ ] Compile external function calls
 - [ ] Compile strings (charlists)
 - [ ] Compile if expressions
 - [ ] Add dynamic type checking for user defined functions through beam instructions
