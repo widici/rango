@@ -208,11 +208,7 @@ fn compile_list(
 ) -> Result(Compiler, error.Error) {
   use compiler <- result.try(compile_exprs(compiler, exprs))
   let compiler = compile_nil(compiler)
-  Ok(
-    list.fold(list.range(1, list.length(exprs)), compiler, fn(compiler, _) {
-      compile_put_list(compiler)
-    }),
-  )
+  Ok(make_variadic(compiler, compile_put_list, list.length(exprs)))
 }
 
 /// Uses a put_list beam instruction between the two latest registers defined
@@ -379,48 +375,46 @@ fn compile_call(
 }
 
 /// Compiles arithmetic expressions to beam instructions
-/// Will output: {gc_bif,operator,{f,0},2,[{x,stack_size},{x,stack_size+1},{x,stack_size}]}
-/// ### Safety
-/// Can only handle two operands for now due to restrictions of the GcBif2 instruction
 fn compile_arth_expr(
   compiler: Compiler,
   operator: token.Op,
   operands: List(ast.Expr),
 ) -> Result(Compiler, error.Error) {
-  let assert 2 = list.length(operands)
-  use compiler <- result.try(compile_exprs(compiler, operands))
-  let compiler =
-    compiler
-    |> add_arg(arg.new() |> arg.add_opc(arg.GcBif2))
+  use compiler <- result.try(compile_exprs(compiler, operands |> list.reverse()))
+  let name = case operator {
+    token.Add -> "+"
+    token.Sub -> "-"
+    token.Mul -> "*"
+    // token.Div is not handled in the same way with gc_bif2 and thus isn't pattern-matched
+    _ -> panic
+  }
+  use #(compiler, bif) <- result.try(resolve_func_id(
+    compiler,
+    ForeignFunc("erlang", name, 2),
+    span.empty(),
+  ))
+  Ok(make_variadic(
+    compiler,
+    fn(x) { compile_bif2(x, bif) },
+    list.length(operands) - 1,
+  ))
+}
+
+/// Will output: {gc_bif,bif,{f,0},2,[{x,stack_size},{x,stack_size+1},{x,stack_size}]}
+/// ### Important
+/// Applies the bif in reverse so that stack_size+1 is the first param & stack_size the second one
+/// Therefore params needs to be compiled in reverse order
+fn compile_bif2(compiler: Compiler, bif: Int) -> Compiler {
+  Compiler(
     // A fail will throw an exception on error due to flag being 0
+    ..add_arg(compiler, arg.new() |> arg.add_opc(arg.GcBif2))
     |> add_arg(arg.new() |> arg.add_tag(arg.F) |> arg.int_opc(0))
     |> add_arg(
       arg.new()
       |> arg.add_tag(arg.U)
-      |> arg.int_opc(2),
+      |> arg.int_opc(compiler.stack_size),
     )
-  let assert #(compiler, Ok(id)) =
-    resolve_func_id(
-      compiler,
-      ForeignFunc(
-        module: "erlang",
-        name: case operator {
-          token.Add -> "+"
-          token.Sub -> "-"
-          token.Mul -> "*"
-          // token.Div is not handled in the same way with gc_bif2 and thus isn't pattern-matched
-          _ -> panic
-        },
-        arity: 2,
-      ),
-    )
-  let compiler =
-    add_arg(compiler, arg.new() |> arg.add_tag(arg.U) |> arg.int_opc(id))
-    |> add_arg(
-      arg.new()
-      |> arg.add_tag(arg.X)
-      |> arg.int_opc(compiler.stack_size - 2),
-    )
+    |> add_arg(arg.new() |> arg.add_tag(arg.U) |> arg.int_opc(bif))
     |> add_arg(
       arg.new()
       |> arg.add_tag(arg.X)
@@ -431,7 +425,13 @@ fn compile_arth_expr(
       |> arg.add_tag(arg.X)
       |> arg.int_opc(compiler.stack_size - 2),
     )
-  Ok(Compiler(..compiler, stack_size: compiler.stack_size - 1))
+    |> add_arg(
+      arg.new()
+      |> arg.add_tag(arg.X)
+      |> arg.int_opc(compiler.stack_size - 2),
+    ),
+    stack_size: compiler.stack_size - 1,
+  )
 }
 
 /// Compiles a function defintion expression to beam instructions
@@ -517,9 +517,14 @@ fn resolve_func_sig(
 fn resolve_func_id(
   compiler: Compiler,
   func: ForeignFunc,
-) -> #(Compiler, Result(Int, Nil)) {
+  span: span.Span,
+) -> Result(#(Compiler, Int), error.Error) {
   let #(compiler, signature) = resolve_func_sig(compiler, func)
-  #(compiler, signature |> dict.get(compiler.imports, _))
+  case dict.get(compiler.imports, signature) {
+    Ok(signature) -> Ok(#(compiler, signature))
+    Error(_) ->
+      Error(error.Error(error.MissingFunc(func.name, func.arity), span))
+  }
 }
 
 fn add_func_id(
@@ -560,4 +565,16 @@ fn add_func_id(
       ),
     ),
   )
+}
+
+/// Makes binary func accept times-amount of params instead of 2
+/// E.g. Turns (+ 1 2 3 4) -> (+ 1 (+ 2 (+ 3 4)))
+/// ### Important
+/// Params needs to be compiled before calling the function
+fn make_variadic(
+  compiler: Compiler,
+  func: fn(Compiler) -> Compiler,
+  times: Int,
+) -> Compiler {
+  list.fold(list.range(1, times), compiler, fn(compiler, _) { func(compiler) })
 }
