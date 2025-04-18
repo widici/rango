@@ -18,6 +18,7 @@ pub type TokenType {
   Int(Int)
   Str(String)
   Bool(Bool)
+  Nil
   KeyWord(KeyWord)
   EOF
 }

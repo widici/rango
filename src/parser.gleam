@@ -30,6 +30,7 @@ fn parse_expr(
     [#(token.Int(int), span), ..rest] -> Ok(#(#(ast.Int(int), span), rest))
     [#(token.Str(str), span), ..rest] -> Ok(#(#(ast.Str(str), span), rest))
     [#(token.Bool(bool), span), ..rest] -> Ok(#(#(ast.Bool(bool), span), rest))
+    [#(token.Nil, span), ..rest] -> Ok(#(#(ast.Nil, span), rest))
     [#(token.Type(ttype), span), ..rest] ->
       Ok(#(#(ast.Type(ttype), span), rest))
     [#(token.LParen, span.Span(start, _, file_path)), ..rest] ->

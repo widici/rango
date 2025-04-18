@@ -80,6 +80,7 @@ fn compile_expr(
       use compiler <- result.try(compile_var(compiler, name, span))
       Ok(#(compiler, rest))
     }
+    [#(ast.Nil, _), ..rest] -> Ok(#(compile_nil(compiler), rest))
     [#(ast.Sexpr(list), span), ..rest] -> {
       use compiler <- result.try(compile_sexpr(compiler, list, span))
       Ok(#(compiler, rest))
@@ -128,6 +129,18 @@ fn compile_var(
     }
     Error(_) -> Error(error.Error(error.NotFound(name), span))
   }
+}
+
+// Will output: {move,{atom,0},{x,stack_size}}
+fn compile_nil(compiler: Compiler) -> Compiler {
+  Compiler(
+    ..add_arg(compiler, arg.new() |> arg.add_opc(arg.Move))
+    |> add_arg(arg.new() |> arg.add_tag(arg.A) |> arg.int_opc(0))
+    |> add_arg(
+      arg.new() |> arg.add_tag(arg.X) |> arg.int_opc(compiler.stack_size),
+    ),
+    stack_size: compiler.stack_size + 1,
+  )
 }
 
 fn compile_sexpr(
@@ -186,21 +199,17 @@ fn compile_cons_expr(
 }
 
 /// Compiles list expression to beam instruction
-/// (list 1 2 3) expression is equivalent of (cons 1 (cons 2 3)) expression
+/// (list 1 2 3) expression is equivalent of a (cons 1 (cons 2 (cons 3 Nil))) expression
+/// ### Important
+/// Compiles to proper lists not improper lists
 fn compile_list(
   compiler: Compiler,
   exprs: List(ast.Expr),
 ) -> Result(Compiler, error.Error) {
-  use compiler <- result.try(
-    exprs
-    |> list.fold(Ok(compiler), fn(compiler, expr) {
-      use compiler <- result.try(compiler)
-      use #(compiler, _) <- result.try(compile_expr(compiler, [expr]))
-      Ok(compiler)
-    }),
-  )
+  use compiler <- result.try(compile_exprs(compiler, exprs))
+  let compiler = compile_nil(compiler)
   Ok(
-    list.fold(list.range(1, list.length(exprs) - 1), compiler, fn(compiler, _) {
+    list.fold(list.range(1, list.length(exprs)), compiler, fn(compiler, _) {
       compile_put_list(compiler)
     }),
   )

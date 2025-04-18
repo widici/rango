@@ -9,6 +9,7 @@ pub type ExprType {
   Int(Int)
   Str(String)
   Bool(Bool)
+  Nil
   Op(token.Op)
   KeyWord(token.KeyWord)
   Ident(String)
