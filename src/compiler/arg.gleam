@@ -42,46 +42,42 @@ pub fn new() -> Arg {
 
 /// Sets tag in arg to the Int used for identifying the specific tag bytecode
 pub fn add_tag(arg: Arg, tag: Tag) -> Arg {
-  Arg(
-    ..arg,
-    tag: option.Some(case tag {
-      U -> 0
-      I -> 1
-      A -> 2
-      X -> 3
-      Y -> 4
-      F -> 5
-    }),
-  )
+  int_tag(arg, case tag {
+    U -> 0
+    I -> 1
+    A -> 2
+    X -> 3
+    Y -> 4
+    F -> 5
+  })
 }
 
 /// Sets tag in arg to the Int used for identifying the specific opcode bytecode
 pub fn add_opc(arg: Arg, opcode: OpCode) -> Arg {
-  Arg(
-    ..arg,
-    opcode: option.Some(case opcode {
-      Label -> 1
-      FuncInfo -> 2
-      IntCodeEnd -> 3
-      Call -> 4
-      CallExt -> 7
-      Allocate -> 12
-      Deallocate -> 18
-      Return -> 19
-      Move -> 64
-      PutList -> 69
-      GcBif2 -> 125
-    }),
-  )
+  int_opc(arg, case opcode {
+    Label -> 1
+    FuncInfo -> 2
+    IntCodeEnd -> 3
+    Call -> 4
+    CallExt -> 7
+    Allocate -> 12
+    Deallocate -> 18
+    Return -> 19
+    Move -> 64
+    PutList -> 69
+    GcBif2 -> 125
+  })
 }
 
 /// Changes tag in arg to specified Int
 pub fn int_tag(arg: Arg, tag: Int) -> Arg {
+  let assert option.None = arg.tag
   Arg(..arg, tag: option.Some(tag))
 }
 
 /// Changes opcode in tag to specified Int
 pub fn int_opc(arg: Arg, opcode: Int) -> Arg {
+  let assert option.None = arg.opcode
   Arg(..arg, opcode: option.Some(opcode))
 }
 

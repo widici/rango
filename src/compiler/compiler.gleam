@@ -309,11 +309,10 @@ fn compile_local_func(compiler: Compiler, arity: Int, label: Int) -> Compiler {
 }
 
 fn compile_external_func(compiler: Compiler, arity: Int, index: Int) -> Compiler {
-  // TODO: Fix issues when index isn't 0
   compile_call(compiler, arity, fn(compiler) {
     add_arg(compiler, arg.new() |> arg.add_opc(arg.CallExt))
-    |> add_arg(arg.new() |> arg.add_tag(arg.U) |> arg.int_tag(arity))
-    |> add_arg(arg.new() |> arg.add_tag(arg.U) |> arg.int_tag(index))
+    |> add_arg(arg.new() |> arg.add_tag(arg.U) |> arg.int_opc(arity))
+    |> add_arg(arg.new() |> arg.add_tag(arg.U) |> arg.int_opc(index))
   })
 }
 
