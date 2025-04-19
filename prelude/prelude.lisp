@@ -1,6 +1,7 @@
 (use "erlang" "+" 2)
 (use "erlang" "-" 2)
 (use "erlang" "*" 2)
+(use "lists" "flatten" 1)
 
 (use "io" "format" 2)
 

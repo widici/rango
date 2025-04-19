@@ -52,6 +52,8 @@ pub type Op {
   Or
   /// !
   Not
+  /// <>
+  Concat
 }
 
 pub type KeyWord {

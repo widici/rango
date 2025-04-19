@@ -67,6 +67,7 @@ fn lex_token(
     "-" <> rest -> Ok(#(option.Some(token.Op(token.Sub)), rest))
     "*" <> rest -> Ok(#(option.Some(token.Op(token.Mul)), rest))
     "/" <> rest -> Ok(#(option.Some(token.Op(token.Div)), rest))
+    "<>" <> rest -> Ok(#(option.Some(token.Op(token.Concat)), rest))
     // Comparison operators
     "==" <> rest -> Ok(#(option.Some(token.Op(token.EqEq)), rest))
     "!=" <> rest -> Ok(#(option.Some(token.Op(token.Ne)), rest))

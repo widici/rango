@@ -198,7 +198,13 @@ fn compile_sexpr(
     [#(ast.KeyWord(token.Return), _), ..rest] ->
       compile_return_expr(compiler, rest)
     [#(ast.Op(operator), _), ..rest] ->
-      compile_arth_expr(compiler, operator, rest)
+      case operator {
+        token.Add | token.Sub | token.Mul ->
+          compile_arth_expr(compiler, operator, rest, span)
+        token.Concat -> compile_concat_expr(compiler, rest, span)
+        _ -> panic
+      }
+    //compile_arth_expr(compiler, operator, rest)
     [
       #(ast.KeyWord(token.Func), _),
       #(ast.Ident(name), _),
@@ -333,15 +339,15 @@ fn compile_call_expr(
   let external = list.first(external)
   let local = dict.get(compiler.exports, #(name_id, arity))
   case external, local {
-    Error(_), Ok(label) -> Ok(compile_local_func(compiler, arity, label))
-    Ok(index), Error(_) -> Ok(compile_external_func(compiler, arity, index))
+    Error(_), Ok(label) -> Ok(compile_local_call(compiler, arity, label))
+    Ok(index), Error(_) -> Ok(compile_external_call(compiler, arity, index))
     Ok(_), Ok(_) -> Error(error.Error(error.AmbigousCall(name, arity), span))
     Error(_), Error(_) ->
       Error(error.Error(error.MissingFunc(name, arity), span))
   }
 }
 
-fn compile_local_func(compiler: Compiler, arity: Int, label: Int) -> Compiler {
+fn compile_local_call(compiler: Compiler, arity: Int, label: Int) -> Compiler {
   compile_call(compiler, arity, fn(compiler) {
     add_arg(compiler, arg.new() |> arg.add_opc(arg.Call))
     |> add_arg(arg.new() |> arg.add_tag(arg.U) |> arg.int_opc(arity))
@@ -349,7 +355,7 @@ fn compile_local_func(compiler: Compiler, arity: Int, label: Int) -> Compiler {
   })
 }
 
-fn compile_external_func(compiler: Compiler, arity: Int, index: Int) -> Compiler {
+fn compile_external_call(compiler: Compiler, arity: Int, index: Int) -> Compiler {
   compile_call(compiler, arity, fn(compiler) {
     add_arg(compiler, arg.new() |> arg.add_opc(arg.CallExt))
     |> add_arg(arg.new() |> arg.add_tag(arg.U) |> arg.int_opc(arity))
@@ -410,11 +416,29 @@ fn compile_call(
   Compiler(..compiler, stack_size: compiler.stack_size + 1)
 }
 
+fn compile_concat_expr(
+  compiler: Compiler,
+  operands: List(ast.Expr),
+  span: span.Span,
+) -> Result(Compiler, error.Error) {
+  use compiler <- result.try(compile_exprs(compiler, operands))
+  use #(compiler, index) <- result.try(resolve_func_id(
+    compiler,
+    ForeignFunc("lists", "flatten", 1),
+    span,
+  ))
+  Ok(
+    compile_list(compiler, list.length(operands))
+    |> compile_external_call(1, index),
+  )
+}
+
 /// Compiles arithmetic expressions to beam instructions
 fn compile_arth_expr(
   compiler: Compiler,
   operator: token.Op,
   operands: List(ast.Expr),
+  span: span.Span,
 ) -> Result(Compiler, error.Error) {
   use compiler <- result.try(compile_exprs(compiler, operands |> list.reverse()))
   let name = case operator {
@@ -427,7 +451,7 @@ fn compile_arth_expr(
   use #(compiler, bif) <- result.try(resolve_func_id(
     compiler,
     ForeignFunc("erlang", name, 2),
-    span.empty(),
+    span,
   ))
   Ok(make_variadic(
     compiler,
