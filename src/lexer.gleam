@@ -1,5 +1,6 @@
 import error
 import gleam/int
+import gleam/io
 import gleam/list
 import gleam/option
 import gleam/regex
@@ -38,7 +39,7 @@ fn lex_(
   let curr_len = string.length(rest)
   let assert Ok(#(grapheme, _)) = lexer.src |> string.pop_grapheme()
   let end = case grapheme {
-    "\n" -> #(lexer.pos.0 + 1, 1)
+    "\n" | "//" -> #(lexer.pos.0 + 1, 1)
     "\t" -> #(lexer.pos.0, lexer.pos.1 + 4)
     _ -> #(lexer.pos.0, lexer.pos.1 + { string.length(lexer.src) - curr_len })
   }
@@ -63,6 +64,11 @@ fn lex_token(
 ) -> Result(#(option.Option(token.TokenType), String), error.Error) {
   case src {
     " " <> rest | "\n" <> rest | "\t" <> rest -> Ok(#(option.None, rest))
+    "//" <> rest -> {
+      let rest = lex_comment(rest)
+      io.debug(rest)
+      Ok(#(option.None, rest))
+    }
     "+" <> rest -> Ok(#(option.Some(token.Op(token.Add)), rest))
     "-" <> rest -> Ok(#(option.Some(token.Op(token.Sub)), rest))
     "*" <> rest -> Ok(#(option.Some(token.Op(token.Mul)), rest))
@@ -172,4 +178,11 @@ fn lex_ident(src: String) -> #(token.TokenType, String) {
       regex_validate(grapheme, "^[a-zA-Z_][a-zA-Z0-9_]*$")
     })
   #(token.Ident(name), rest)
+}
+
+fn lex_comment(src: String) -> String {
+  io.debug(src)
+  let #(_, rest) =
+    take_predicate(src, "", fn(grapheme) { regex_validate(grapheme, "^[^\n]$") })
+  rest
 }

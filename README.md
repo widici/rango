@@ -19,6 +19,7 @@ gleam test  # Run the tests
 - [x] Improve lexing of literals with the usage of regex
 - [x] Lex spans in source-code for tokens
 - [x] Lex column and row position for span instead of linear position
+- [x] Lex comments
 
 ### Parser
 

@@ -209,7 +209,6 @@ fn compile_sexpr(
       #(ast.KeyWord(token.Func), _),
       #(ast.Ident(name), _),
       #(ast.Params(params), _),
-      #(ast.Type(_ret_type), _),
       #(ast.Sexpr(body), _),
     ] -> compile_func_expr(compiler, name, params, body)
     _ ->

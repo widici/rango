@@ -5,10 +5,10 @@
 
 (use "io" "format" 2)
 
-(fn putsln [Str str] Str (
+(fn putsln [Str str] (
     (ret (format "~s~n" (list str)))
 )) 
 
-(fn puts [Str str] Str (
+(fn puts [Str str] (
     (ret (format "~s" (list str)))
 ))
