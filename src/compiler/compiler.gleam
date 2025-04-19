@@ -6,6 +6,7 @@ import gleam/dict
 import gleam/int
 import gleam/list
 import gleam/result
+import gleam/string
 import span
 import token
 
@@ -81,6 +82,8 @@ fn compile_expr(
       Ok(#(compiler, rest))
     }
     [#(ast.Nil, _), ..rest] -> Ok(#(compile_nil(compiler), rest))
+    [#(ast.Str(contents), _), ..rest] ->
+      Ok(#(compile_str(compiler, contents), rest))
     [#(ast.Sexpr(list), span), ..rest] -> {
       use compiler <- result.try(compile_sexpr(compiler, list, span))
       Ok(#(compiler, rest))
@@ -131,7 +134,7 @@ fn compile_var(
   }
 }
 
-// Will output: {move,{atom,0},{x,stack_size}}
+/// Will output: {move,{atom,0},{x,stack_size}}
 fn compile_nil(compiler: Compiler) -> Compiler {
   Compiler(
     ..add_arg(compiler, arg.new() |> arg.add_opc(arg.Move))
@@ -141,6 +144,18 @@ fn compile_nil(compiler: Compiler) -> Compiler {
     ),
     stack_size: compiler.stack_size + 1,
   )
+}
+
+/// Compiles strings to beam instructions
+/// ### Important
+/// Compiles to charlists not to binaries
+fn compile_str(compiler: Compiler, str: String) -> Compiler {
+  string.to_utf_codepoints(str)
+  |> list.map(string.utf_codepoint_to_int)
+  |> list.fold(compiler, fn(compiler, code_point) {
+    compile_int(compiler, code_point)
+  })
+  |> compile_list(string.length(str))
 }
 
 fn compile_sexpr(
@@ -157,7 +172,8 @@ fn compile_sexpr(
       compile_call_expr(compiler, name, params, span)
     [#(ast.KeyWord(token.Cons), _), head, tail] ->
       compile_cons_expr(compiler, head, tail)
-    [#(ast.KeyWord(token.List), _), ..exprs] -> compile_list(compiler, exprs)
+    [#(ast.KeyWord(token.List), _), ..exprs] ->
+      compile_list_expr(compiler, exprs)
     [#(ast.KeyWord(token.Var), _), #(ast.Ident(name), _), expr] ->
       compile_var_def_expr(compiler, name, expr)
     [
@@ -202,13 +218,18 @@ fn compile_cons_expr(
 /// (list 1 2 3) expression is equivalent of a (cons 1 (cons 2 (cons 3 Nil))) expression
 /// ### Important
 /// Compiles to proper lists not improper lists
-fn compile_list(
+fn compile_list_expr(
   compiler: Compiler,
   exprs: List(ast.Expr),
 ) -> Result(Compiler, error.Error) {
   use compiler <- result.try(compile_exprs(compiler, exprs))
-  let compiler = compile_nil(compiler)
-  Ok(make_variadic(compiler, compile_put_list, list.length(exprs)))
+  Ok(compile_list(compiler, list.length(exprs)))
+}
+
+/// ### Important
+/// Compiles to proper lists not improper lists
+fn compile_list(compiler: Compiler, times: Int) -> Compiler {
+  compile_nil(compiler) |> make_variadic(compile_put_list, times)
 }
 
 /// Uses a put_list beam instruction between the two latest registers defined
@@ -308,7 +329,7 @@ fn compile_call_expr(
 fn compile_local_func(compiler: Compiler, arity: Int, label: Int) -> Compiler {
   compile_call(compiler, arity, fn(compiler) {
     add_arg(compiler, arg.new() |> arg.add_opc(arg.Call))
-    |> add_arg(arg.new() |> arg.add_tag(arg.U) |> arg.int_tag(arity))
+    |> add_arg(arg.new() |> arg.add_tag(arg.U) |> arg.int_opc(arity))
     |> add_arg(arg.new() |> arg.add_tag(arg.F) |> arg.int_opc(label))
   })
 }
@@ -352,7 +373,7 @@ fn compile_call(
       |> add_arg(
         arg.new()
         |> arg.add_tag(arg.X)
-        |> arg.int_opc(compiler.stack_size - i - 1),
+        |> arg.int_opc(compiler.stack_size - arity + i),
       )
       |> add_arg(arg.new() |> arg.add_tag(arg.X) |> arg.int_opc(i))
     })
