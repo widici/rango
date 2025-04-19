@@ -100,6 +100,7 @@ fn lex_token(
     "cons" <> rest -> Ok(#(option.Some(token.KeyWord(token.Cons)), rest))
     // Other
     "Nil" <> rest -> Ok(#(option.Some(token.Nil), rest))
+    "Ok" <> rest -> Ok(#(option.Some(token.Ok), rest))
     "\"" <> rest -> {
       let #(token, rest) = lex_str(rest)
       Ok(#(option.Some(token), rest))

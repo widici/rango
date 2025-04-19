@@ -81,9 +81,10 @@ fn compile_expr(
       use compiler <- result.try(compile_var(compiler, name, span))
       Ok(#(compiler, rest))
     }
-    [#(ast.Nil, _), ..rest] -> Ok(#(compile_nil(compiler), rest))
     [#(ast.Str(contents), _), ..rest] ->
       Ok(#(compile_str(compiler, contents), rest))
+    [#(ast.Nil, _), ..rest] -> Ok(#(compile_nil(compiler), rest))
+    [#(ast.Ok, _), ..rest] -> Ok(#(compile_ok(compiler), rest))
     [#(ast.Sexpr(list), span), ..rest] -> {
       use compiler <- result.try(compile_sexpr(compiler, list, span))
       Ok(#(compiler, rest))
@@ -134,6 +135,18 @@ fn compile_var(
   }
 }
 
+/// Compiles strings to beam instructions
+/// ### Important
+/// Compiles to charlists not to binaries
+fn compile_str(compiler: Compiler, str: String) -> Compiler {
+  string.to_utf_codepoints(str)
+  |> list.map(string.utf_codepoint_to_int)
+  |> list.fold(compiler, fn(compiler, code_point) {
+    compile_int(compiler, code_point)
+  })
+  |> compile_list(string.length(str))
+}
+
 /// Will output: {move,{atom,0},{x,stack_size}}
 fn compile_nil(compiler: Compiler) -> Compiler {
   Compiler(
@@ -146,16 +159,16 @@ fn compile_nil(compiler: Compiler) -> Compiler {
   )
 }
 
-/// Compiles strings to beam instructions
-/// ### Important
-/// Compiles to charlists not to binaries
-fn compile_str(compiler: Compiler, str: String) -> Compiler {
-  string.to_utf_codepoints(str)
-  |> list.map(string.utf_codepoint_to_int)
-  |> list.fold(compiler, fn(compiler, code_point) {
-    compile_int(compiler, code_point)
-  })
-  |> compile_list(string.length(str))
+fn compile_ok(compiler: Compiler) -> Compiler {
+  let #(compiler, atom_id) = get_atom_id(compiler, "ok")
+  Compiler(
+    ..add_arg(compiler, arg.new() |> arg.add_opc(arg.Move))
+    |> add_arg(arg.new() |> arg.add_tag(arg.A) |> arg.int_opc(atom_id))
+    |> add_arg(
+      arg.new() |> arg.add_tag(arg.X) |> arg.int_opc(compiler.stack_size),
+    ),
+    stack_size: compiler.stack_size + 1,
+  )
 }
 
 fn compile_sexpr(
@@ -277,24 +290,26 @@ fn compile_use_expr(
 }
 
 /// Returns evaluation of exprs from function
-/// Will output:
-/// {move,{x,stack_size-1},{x,0}}
-/// {return}
 fn compile_return_expr(
   compiler: Compiler,
   exprs: List(ast.Expr),
 ) -> Result(Compiler, error.Error) {
   use compiler <- result.try(compile_exprs(compiler, exprs))
-  Ok(
-    add_arg(compiler, arg.new() |> arg.add_opc(arg.Move))
-    |> add_arg(
-      arg.new()
-      |> arg.add_tag(arg.X)
-      |> arg.int_opc(compiler.stack_size - 1),
-    )
-    |> add_arg(arg.new() |> arg.add_tag(arg.X) |> arg.int_opc(0))
-    |> add_arg(arg.new() |> arg.add_opc(arg.Return)),
+  Ok(compile_return(compiler))
+}
+
+/// Will output:
+/// {move,{x,stack_size-1},{x,0}}
+/// {return}
+fn compile_return(compiler: Compiler) -> Compiler {
+  add_arg(compiler, arg.new() |> arg.add_opc(arg.Move))
+  |> add_arg(
+    arg.new()
+    |> arg.add_tag(arg.X)
+    |> arg.int_opc(compiler.stack_size - 1),
   )
+  |> add_arg(arg.new() |> arg.add_tag(arg.X) |> arg.int_opc(0))
+  |> add_arg(arg.new() |> arg.add_opc(arg.Return))
 }
 
 fn compile_call_expr(
@@ -479,29 +494,30 @@ fn compile_func_expr(
       #(name, index)
     })
     |> dict.from_list()
-  Compiler(
-    ..add_arg(compiler, arg.new() |> arg.add_opc(arg.Label))
-    |> add_arg(
-      arg.new() |> arg.add_tag(arg.U) |> arg.int_opc(compiler.label_count + 1),
+  let compiler =
+    Compiler(
+      ..add_arg(compiler, arg.new() |> arg.add_opc(arg.Label))
+      |> add_arg(
+        arg.new() |> arg.add_tag(arg.U) |> arg.int_opc(compiler.label_count + 1),
+      )
+      |> add_arg(arg.new() |> arg.add_opc(arg.FuncInfo))
+      |> add_arg(arg.new() |> arg.add_tag(arg.A) |> arg.int_opc(module_id))
+      |> add_arg(arg.new() |> arg.add_tag(arg.A) |> arg.int_opc(name_id))
+      |> add_arg(
+        arg.new() |> arg.add_tag(arg.U) |> arg.int_opc(dict.size(params)),
+      )
+      |> add_arg(arg.new() |> arg.add_opc(arg.Label))
+      |> add_arg(
+        arg.new() |> arg.add_tag(arg.U) |> arg.int_opc(compiler.label_count + 2),
+      ),
+      stack_size: dict.size(params),
+      label_count: compiler.label_count + 2,
+      exports: compiler.exports
+        |> dict.insert(#(name_id, dict.size(params)), compiler.label_count + 2),
+      vars:,
     )
-    |> add_arg(arg.new() |> arg.add_opc(arg.FuncInfo))
-    |> add_arg(arg.new() |> arg.add_tag(arg.A) |> arg.int_opc(module_id))
-    |> add_arg(arg.new() |> arg.add_tag(arg.A) |> arg.int_opc(name_id))
-    |> add_arg(
-      arg.new() |> arg.add_tag(arg.U) |> arg.int_opc(dict.size(params)),
-    )
-    |> add_arg(arg.new() |> arg.add_opc(arg.Label))
-    |> add_arg(
-      arg.new() |> arg.add_tag(arg.U) |> arg.int_opc(compiler.label_count + 2),
-    ),
-    stack_size: dict.size(params),
-    label_count: compiler.label_count + 2,
-    exports: compiler.exports
-      |> dict.insert(#(name_id, dict.size(params)), compiler.label_count + 2),
-    vars:,
-  )
-  // TODO: check if this is valid for multiple exprs in body
-  |> compile_exprs(body)
+  use compiler <- result.try(compile_exprs(compiler, body))
+  Ok(compile_ok(compiler) |> compile_return())
 }
 
 pub fn add_arg(compiler: Compiler, arg: arg.Arg) -> Compiler {

@@ -10,6 +10,7 @@ pub type ExprType {
   Str(String)
   Bool(Bool)
   Nil
+  Ok
   Op(token.Op)
   KeyWord(token.KeyWord)
   Ident(String)
