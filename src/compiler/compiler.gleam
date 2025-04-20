@@ -38,6 +38,7 @@ pub type Compiler {
     exports: Exports,
     label_count: Int,
     vars: dict.Dict(String, Int),
+    labels: List(#(Int, bytes_tree.BytesTree)),
     module: String,
   )
 }
@@ -52,6 +53,7 @@ pub fn new(module: String) -> Compiler {
       exports: dict.new(),
       label_count: 0,
       vars: dict.new(),
+      labels: [],
       module:,
     )
     |> get_atom_id(module)
@@ -86,6 +88,26 @@ fn compile_expr(
     [#(ast.Nil, _), ..rest] -> Ok(#(compile_nil(compiler), rest))
     [#(ast.Ok, _), ..rest] -> Ok(#(compile_ok(compiler), rest))
     [#(ast.Bool(bool), _), ..rest] -> Ok(#(compile_bool(compiler, bool), rest))
+    [
+      #(
+        ast.Sexpr([
+          #(ast.KeyWord(token.If), _),
+          conditional,
+          #(ast.Sexpr(body), _),
+        ]),
+        _,
+      ),
+      ..rest
+    ] -> {
+      // ast.KeyWord(token.If), _), conditional, #(ast.Sexpr(body), _
+      use compiler <- result.try(compile_if_expr(
+        compiler,
+        conditional,
+        body,
+        rest,
+      ))
+      Ok(#(compiler, []))
+    }
     [#(ast.Sexpr(list), span), ..rest] -> {
       use compiler <- result.try(compile_sexpr(compiler, list, span))
       Ok(#(compiler, rest))
@@ -220,7 +242,10 @@ fn compile_sexpr(
         | token.Or -> compile_conditional(compiler, operator, rest, span)
         _ -> panic
       }
-    //compile_arth_expr(compiler, operator, rest)
+    //[#(ast.KeyWord(token.If), _), conditional, #(ast.Sexpr(body), _)] -> {
+    //  io.debug(list)
+    //  compile_if_expr(compiler, conditional, body, rest)
+    //}
     [
       #(ast.KeyWord(token.Func), _),
       #(ast.Ident(name), _),
@@ -539,6 +564,57 @@ fn compile_bif2(compiler: Compiler, bif: Int) -> Compiler {
   )
 }
 
+fn compile_if_expr(
+  compiler: Compiler,
+  conditional: ast.Expr,
+  body: List(ast.Expr),
+  rest: List(ast.Expr),
+) -> Result(Compiler, error.Error) {
+  use #(compiler, _) <- result.try(compile_expr(compiler, [conditional]))
+  let compiler = compile_bool(compiler, True)
+  let compiler =
+    Compiler(
+      ..add_arg(compiler, arg.new() |> arg.add_opc(arg.IsEqExact))
+      |> add_arg(
+        arg.new()
+        |> arg.add_tag(arg.F)
+        |> arg.int_opc(compiler.label_count + 1),
+      )
+      |> add_arg(
+        arg.new()
+        |> arg.add_tag(arg.X)
+        |> arg.int_opc(compiler.stack_size - 2),
+      )
+      |> add_arg(
+        arg.new()
+        |> arg.add_tag(arg.X)
+        |> arg.int_opc(compiler.stack_size - 1),
+      ),
+      label_count: compiler.label_count + 1,
+    )
+  use compiler <- result.try(compile_exprs(compiler, body))
+  let compiler =
+    add_arg(compiler, arg.new() |> arg.add_opc(arg.Jump))
+    |> add_arg(
+      arg.new()
+      |> arg.add_tag(arg.F)
+      |> arg.int_opc(compiler.label_count),
+    )
+  use new_compiler <- result.try(
+    Compiler(..compiler, data: bytes_tree.new(), labels: [])
+    |> compile_exprs(rest),
+  )
+  Ok(
+    Compiler(
+      ..compiler,
+      labels: list.append(compiler.labels, [
+        #(compiler.label_count, new_compiler.data),
+        ..new_compiler.labels
+      ]),
+    ),
+  )
+}
+
 /// Compiles a function defintion expression to beam instructions
 /// Will output:
 /// {function, func-id, params-len, label_count+2}.
@@ -586,7 +662,19 @@ fn compile_func_expr(
       vars:,
     )
   use compiler <- result.try(compile_exprs(compiler, body))
-  Ok(compile_ok(compiler) |> compile_return())
+  Ok(
+    list.fold(compiler.labels, compiler, fn(compiler, label) {
+      let compiler =
+        add_arg(compiler, arg.new() |> arg.add_opc(arg.Label))
+        |> add_arg(arg.new() |> arg.add_tag(arg.U) |> arg.int_opc(label.0))
+      Compiler(
+        ..compiler,
+        data: compiler.data |> bytes_tree.append_tree(label.1),
+      )
+    })
+    |> compile_ok()
+    |> compile_return(),
+  )
 }
 
 pub fn add_arg(compiler: Compiler, arg: arg.Arg) -> Compiler {

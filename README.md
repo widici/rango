@@ -50,7 +50,7 @@ gleam test  # Run the tests
 - [x] Compile external function calls
 - [x] Compile strings (charlists)
 - [x] Compile booleans and conditional expressions
-- [ ] Compile if expressions
+- [x] Compile if expressions
 - [ ] Add dynamic type checking for user defined functions through beam instructions
 
 ### Miscellaneous

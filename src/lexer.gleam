@@ -1,6 +1,5 @@
 import error
 import gleam/int
-import gleam/io
 import gleam/list
 import gleam/option
 import gleam/regex
@@ -66,7 +65,6 @@ fn lex_token(
     " " <> rest | "\n" <> rest | "\t" <> rest -> Ok(#(option.None, rest))
     "//" <> rest -> {
       let rest = lex_comment(rest)
-      io.debug(rest)
       Ok(#(option.None, rest))
     }
     "+" <> rest -> Ok(#(option.Some(token.Op(token.Add)), rest))
@@ -105,6 +103,7 @@ fn lex_token(
     "var" <> rest -> Ok(#(option.Some(token.KeyWord(token.Var)), rest))
     "list" <> rest -> Ok(#(option.Some(token.KeyWord(token.List)), rest))
     "cons" <> rest -> Ok(#(option.Some(token.KeyWord(token.Cons)), rest))
+    "if" <> rest -> Ok(#(option.Some(token.KeyWord(token.If)), rest))
     // Other
     "Nil" <> rest -> Ok(#(option.Some(token.Nil), rest))
     "Ok" <> rest -> Ok(#(option.Some(token.Ok), rest))
@@ -181,7 +180,6 @@ fn lex_ident(src: String) -> #(token.TokenType, String) {
 }
 
 fn lex_comment(src: String) -> String {
-  io.debug(src)
   let #(_, rest) =
     take_predicate(src, "", fn(grapheme) { regex_validate(grapheme, "^[^\n]$") })
   rest

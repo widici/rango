@@ -69,6 +69,8 @@ pub type KeyWord {
   List
   /// cons
   Cons
+  /// if
+  If
 }
 
 pub type Type {

@@ -15,6 +15,8 @@ pub type OpCode {
   Allocate
   Deallocate
   Return
+  IsEqExact
+  Jump
   Move
   PutList
   GcBif2
@@ -63,6 +65,8 @@ pub fn add_opc(arg: Arg, opcode: OpCode) -> Arg {
     Allocate -> 12
     Deallocate -> 18
     Return -> 19
+    IsEqExact -> 43
+    Jump -> 61
     Move -> 64
     PutList -> 69
     GcBif2 -> 125
