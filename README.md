@@ -23,7 +23,7 @@ gleam test  # Run the tests
 
 ### Parser
 
-- [x] Parse literals, keywords & operators
+- [x] Parse literals, keywords and operators
 - [x] Parse lists
 - [x] Parse parameters
 - [x] Parse spans for expressions
@@ -49,6 +49,7 @@ gleam test  # Run the tests
 - [x] Compile internal/local function calls
 - [x] Compile external function calls
 - [x] Compile strings (charlists)
+- [x] Compile booleans and conditional expressions
 - [ ] Compile if expressions
 - [ ] Add dynamic type checking for user defined functions through beam instructions
 

@@ -85,6 +85,7 @@ fn compile_expr(
       Ok(#(compile_str(compiler, contents), rest))
     [#(ast.Nil, _), ..rest] -> Ok(#(compile_nil(compiler), rest))
     [#(ast.Ok, _), ..rest] -> Ok(#(compile_ok(compiler), rest))
+    [#(ast.Bool(bool), _), ..rest] -> Ok(#(compile_bool(compiler, bool), rest))
     [#(ast.Sexpr(list), span), ..rest] -> {
       use compiler <- result.try(compile_sexpr(compiler, list, span))
       Ok(#(compiler, rest))
@@ -147,11 +148,11 @@ fn compile_str(compiler: Compiler, str: String) -> Compiler {
   |> compile_list(string.length(str))
 }
 
-/// Will output: {move,{atom,0},{x,stack_size}}
-fn compile_nil(compiler: Compiler) -> Compiler {
+/// Will output: {move,{atom,id},{x,stack_size}}
+fn compile_atom(compiler: Compiler, id: Int) -> Compiler {
   Compiler(
     ..add_arg(compiler, arg.new() |> arg.add_opc(arg.Move))
-    |> add_arg(arg.new() |> arg.add_tag(arg.A) |> arg.int_opc(0))
+    |> add_arg(arg.new() |> arg.add_tag(arg.A) |> arg.int_opc(id))
     |> add_arg(
       arg.new() |> arg.add_tag(arg.X) |> arg.int_opc(compiler.stack_size),
     ),
@@ -159,16 +160,23 @@ fn compile_nil(compiler: Compiler) -> Compiler {
   )
 }
 
+/// Will output: {move,{atom,0},{x,stack_size}}
+fn compile_nil(compiler: Compiler) -> Compiler {
+  compile_atom(compiler, 0)
+}
+
 fn compile_ok(compiler: Compiler) -> Compiler {
   let #(compiler, atom_id) = get_atom_id(compiler, "ok")
-  Compiler(
-    ..add_arg(compiler, arg.new() |> arg.add_opc(arg.Move))
-    |> add_arg(arg.new() |> arg.add_tag(arg.A) |> arg.int_opc(atom_id))
-    |> add_arg(
-      arg.new() |> arg.add_tag(arg.X) |> arg.int_opc(compiler.stack_size),
-    ),
-    stack_size: compiler.stack_size + 1,
-  )
+  compile_atom(compiler, atom_id)
+}
+
+fn compile_bool(compiler: Compiler, bool: Bool) -> Compiler {
+  let name = case bool {
+    True -> "true"
+    False -> "false"
+  }
+  let #(compiler, atom_id) = get_atom_id(compiler, name)
+  compile_atom(compiler, atom_id)
 }
 
 fn compile_sexpr(
@@ -202,6 +210,14 @@ fn compile_sexpr(
         token.Add | token.Sub | token.Mul ->
           compile_arth_expr(compiler, operator, rest, span)
         token.Concat -> compile_concat_expr(compiler, rest, span)
+        token.EqEq
+        | token.Ne
+        | token.Lt
+        | token.Gt
+        | token.Le
+        | token.Ge
+        | token.And
+        | token.Or -> compile_conditional(compiler, operator, rest, span)
         _ -> panic
       }
     //compile_arth_expr(compiler, operator, rest)
@@ -457,6 +473,36 @@ fn compile_arth_expr(
     fn(x) { compile_bif2(x, bif) },
     list.length(operands) - 1,
   ))
+}
+
+fn compile_conditional(
+  compiler: Compiler,
+  operator: token.Op,
+  exprs: List(ast.Expr),
+  span: span.Span,
+) -> Result(Compiler, error.Error) {
+  let assert [lhs, rhs] = exprs
+  // Compiled in reverse order due to compile_bif2 implementation
+  let exprs = case operator {
+    token.Gt | token.Le -> [lhs, rhs]
+    _ -> [rhs, lhs]
+  }
+  use compiler <- result.try(compile_exprs(compiler, exprs))
+  let name = case operator {
+    token.EqEq -> "=:="
+    token.Ne -> "=/="
+    token.Lt | token.Gt -> "<"
+    token.Le | token.Ge -> ">="
+    token.And -> "and"
+    token.Or -> "or"
+    _ -> panic
+  }
+  use #(compiler, bif) <- result.try(resolve_func_id(
+    compiler,
+    ForeignFunc("erlang", name, 2),
+    span,
+  ))
+  Ok(compile_bif2(compiler, bif))
 }
 
 /// Will output: {gc_bif,bif,{f,0},2,[{x,stack_size},{x,stack_size+1},{x,stack_size}]}

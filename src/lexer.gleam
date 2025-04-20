@@ -77,10 +77,10 @@ fn lex_token(
     // Comparison operators
     "==" <> rest -> Ok(#(option.Some(token.Op(token.EqEq)), rest))
     "!=" <> rest -> Ok(#(option.Some(token.Op(token.Ne)), rest))
-    ">" <> rest -> Ok(#(option.Some(token.Op(token.Gt)), rest))
-    "<" <> rest -> Ok(#(option.Some(token.Op(token.Lt)), rest))
     ">=" <> rest -> Ok(#(option.Some(token.Op(token.Ge)), rest))
     "<=" <> rest -> Ok(#(option.Some(token.Op(token.Le)), rest))
+    ">" <> rest -> Ok(#(option.Some(token.Op(token.Gt)), rest))
+    "<" <> rest -> Ok(#(option.Some(token.Op(token.Lt)), rest))
     // Logical operators
     "and" <> rest -> Ok(#(option.Some(token.Op(token.And)), rest))
     "or" <> rest -> Ok(#(option.Some(token.Op(token.Or)), rest))

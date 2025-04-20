@@ -1,6 +1,15 @@
 (use "erlang" "+" 2)
 (use "erlang" "-" 2)
 (use "erlang" "*" 2)
+
+(use "erlang" "=:=" 2)
+(use "erlang" "=/=" 2)
+(use "erlang" "<" 2)
+(use "erlang" ">=" 2)
+
+(use "erlang" "and" 2)
+(use "erlang" "or" 2)
+
 (use "lists" "flatten" 1)
 
 (use "io" "format" 2)
