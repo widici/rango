@@ -1,10 +1,28 @@
+///// Compiles function call to beam instructions
+///// Will output: (for a func w/ a arity of 1)
+///// {allocate,1,stack_size}
+///// {move,{x,0},{y,0}}
+///// {move,{x,stack_size-1},{x,0}}
+///// func()
+///// {move,{x,0},{x,stack_size}}
+///// {move,{y,0},{x,0}}
+///// {deallocate,1}
+///// Compiles function call to beam instructions
+///// Will output: (for a func w/ a arity of 1)
+///// {allocate,1,stack_size}
+///// {move,{x,0},{y,0}}
+///// {move,{x,stack_size-1},{x,0}}
+///// func()
+///// {move,{x,0},{x,stack_size}}
+///// {move,{y,0},{x,0}}
+///// {deallocate,1}
+
 import ast
 import compiler/arg
 import error
 import gleam/bytes_tree
 import gleam/dict
 import gleam/int
-import gleam/io
 import gleam/list
 import gleam/result
 import gleam/string
@@ -376,7 +394,9 @@ fn compile_call_expr(
   let external = list.first(external)
   let local = dict.get(compiler.exports, #(name_id, arity))
   case external, local {
-    Error(_), Ok(label) -> Ok(compile_local_call(compiler, arity, label))
+    Error(_), Ok(label) -> {
+      Ok(compile_local_call(compiler, arity, label))
+    }
     Ok(index), Error(_) -> Ok(compile_external_call(compiler, arity, index))
     Ok(_), Ok(_) -> Error(error.Error(error.AmbigousCall(name, arity), span))
     Error(_), Error(_) ->
@@ -400,24 +420,18 @@ fn compile_external_call(compiler: Compiler, arity: Int, index: Int) -> Compiler
   })
 }
 
-/// Compiles function call to beam instructions
-/// Will output: (for a func w/ a arity of 1)
-/// {allocate,1,stack_size}
-/// {move,{x,0},{y,0}}
-/// {move,{x,stack_size-1},{x,0}}
-/// func()
-/// {move,{x,0},{x,stack_size}}
-/// {move,{y,0},{x,0}}
-/// {deallocate,1}
 fn compile_call(
   compiler: Compiler,
   arity: Int,
   func: fn(Compiler) -> Compiler,
 ) -> Compiler {
-  let range = list.range(0, int.max(arity - 1, 0))
+  let range = list.range(0, compiler.stack_size - 1)
+  let param_range = list.range(0, int.max(0, arity - 1))
   let compiler =
     add_arg(compiler, arg.new() |> arg.add_opc(arg.Allocate))
-    |> add_arg(arg.new() |> arg.add_tag(arg.U) |> arg.int_opc(arity))
+    |> add_arg(
+      arg.new() |> arg.add_tag(arg.U) |> arg.int_opc(compiler.stack_size),
+    )
     |> add_arg(
       arg.new() |> arg.add_tag(arg.U) |> arg.int_opc(compiler.stack_size),
     )
@@ -427,7 +441,11 @@ fn compile_call(
       add_arg(compiler, arg.new() |> arg.add_opc(arg.Move))
       |> add_arg(arg.new() |> arg.add_tag(arg.X) |> arg.int_opc(i))
       |> add_arg(arg.new() |> arg.add_tag(arg.Y) |> arg.int_opc(i))
-      |> add_arg(arg.new() |> arg.add_opc(arg.Move))
+    })
+  let compiler =
+    param_range
+    |> list.fold(compiler, fn(compiler, i) {
+      add_arg(compiler, arg.new() |> arg.add_opc(arg.Move))
       |> add_arg(
         arg.new()
         |> arg.add_tag(arg.X)
@@ -436,7 +454,8 @@ fn compile_call(
       |> add_arg(arg.new() |> arg.add_tag(arg.X) |> arg.int_opc(i))
     })
     |> func()
-    |> add_arg(arg.new() |> arg.add_opc(arg.Move))
+  let compiler =
+    add_arg(compiler, arg.new() |> arg.add_opc(arg.Move))
     |> add_arg(arg.new() |> arg.add_tag(arg.X) |> arg.int_opc(0))
     |> add_arg(
       arg.new() |> arg.add_tag(arg.X) |> arg.int_opc(compiler.stack_size),
@@ -449,7 +468,9 @@ fn compile_call(
       |> add_arg(arg.new() |> arg.add_tag(arg.X) |> arg.int_opc(i))
     })
     |> add_arg(arg.new() |> arg.add_opc(arg.Deallocate))
-    |> add_arg(arg.new() |> arg.add_tag(arg.U) |> arg.int_opc(arity))
+    |> add_arg(
+      arg.new() |> arg.add_tag(arg.U) |> arg.int_opc(compiler.stack_size),
+    )
   Compiler(..compiler, stack_size: compiler.stack_size + 1)
 }
 
@@ -589,7 +610,6 @@ fn compile_if_expr(
       ),
       label_count: compiler.label_count + 1,
     )
-  let label_count = compiler.label_count
   use new_compiler <- result.try(
     Compiler(
       ..compiler,
@@ -599,6 +619,7 @@ fn compile_if_expr(
     )
     |> compile_exprs(rest),
   )
+  let label_count = compiler.label_count
   use compiler <- result.try(compile_exprs(compiler, body))
   let compiler =
     add_arg(compiler, arg.new() |> arg.add_opc(arg.Jump))
@@ -660,24 +681,30 @@ fn compile_func_expr(
       ),
       stack_size: dict.size(params),
       label_count: compiler.label_count + 2,
-      exports: compiler.exports
-        |> dict.insert(#(name_id, dict.size(params)), compiler.label_count + 2),
       vars:,
     )
+  let compiler =
+    Compiler(
+      ..compiler,
+      exports: compiler.exports
+        |> dict.insert(#(name_id, dict.size(params)), compiler.label_count),
+    )
   use compiler <- result.try(compile_exprs(compiler, body))
-  io.debug(list.length(compiler.labels))
   Ok(
-    list.fold(compiler.labels, compiler, fn(compiler, label) {
-      let compiler =
-        add_arg(compiler, arg.new() |> arg.add_opc(arg.Label))
-        |> add_arg(arg.new() |> arg.add_tag(arg.U) |> arg.int_opc(label.0))
-      Compiler(
-        ..compiler,
-        data: compiler.data |> bytes_tree.append_tree(label.1),
-      )
-    })
-    |> compile_ok()
-    |> compile_return(),
+    Compiler(
+      ..list.fold(compiler.labels, compiler, fn(compiler, label) {
+        let compiler =
+          add_arg(compiler, arg.new() |> arg.add_opc(arg.Label))
+          |> add_arg(arg.new() |> arg.add_tag(arg.U) |> arg.int_opc(label.0))
+        Compiler(
+          ..compiler,
+          data: compiler.data |> bytes_tree.append_tree(label.1),
+        )
+      })
+      |> compile_ok()
+      |> compile_return(),
+      labels: [],
+    ),
   )
 }
 

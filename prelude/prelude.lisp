@@ -21,3 +21,9 @@
 (fn puts [Str str] (
     (ret (format "~s" (list str)))
 ))
+
+(use "erlang" "integer_to_list" 1)
+
+(fn str [Int int] (
+    (ret (integer_to_list int))
+))

@@ -37,7 +37,7 @@ fn parse_expr(
     [#(token.LParen, span.Span(start, _, file_path)), ..rest] ->
       parse_list(rest, [], start, file_path)
     [#(token.LSquare, span.Span(start, _, file_path)), ..rest] ->
-      parse_args(rest, option.None, dict.new(), start, file_path)
+      parse_params(rest, option.None, dict.new(), start, file_path)
     _ -> {
       let assert Ok(#(token_type, span)) = list.first(tokens)
       Error(error.Error(error.UnexpectedToken(token_type:), span))
@@ -66,7 +66,7 @@ fn parse_list(
   }
 }
 
-fn parse_args(
+fn parse_params(
   tokens: List(token.Token),
   param_type: option.Option(token.Type),
   acc: dict.Dict(ast.Expr, #(token.Type, Int)),
@@ -79,11 +79,11 @@ fn parse_args(
       Ok(#(#(ast.Params(acc), span.Span(start:, end:, file_path:)), rest))
     }
     [#(token.Type(param_type), _), ..rest] ->
-      parse_args(rest, option.Some(param_type), acc, start, file_path)
+      parse_params(rest, option.Some(param_type), acc, start, file_path)
     _ -> {
       let assert option.Some(param_type) = param_type
       use #(expr, rest) <- result.try(parse_expr(tokens))
-      parse_args(
+      parse_params(
         rest,
         option.Some(param_type),
         dict.insert(acc, expr, #(param_type, dict.size(acc))),
