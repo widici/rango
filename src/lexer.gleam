@@ -45,7 +45,7 @@ fn lex_(
   let span =
     span.Span(
       start: lexer.pos,
-      end: #(end.0, end.1 - 1),
+      end: #(end.0, end.1),
       file_path: lexer.file_path,
     )
   case curr_len {

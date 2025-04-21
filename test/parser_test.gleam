@@ -198,33 +198,33 @@ pub fn parse_span_test() -> Result(Nil, error.Error) {
     Ok([
       #(
         ast.Sexpr([
-          #(ast.KeyWord(token.Func), span.Span(#(1, 2), #(1, 3), "")),
-          #(ast.Ident("add"), span.Span(#(1, 5), #(1, 7), "")),
+          #(ast.KeyWord(token.Func), span.Span(#(1, 2), #(1, 4), "")),
+          #(ast.Ident("add"), span.Span(#(1, 5), #(1, 8), "")),
           #(
             ast.Params(
               dict.from_list([
-                #(#(ast.Ident("a"), span.Span(#(1, 14), #(1, 14), "")), #(
+                #(#(ast.Ident("a"), span.Span(#(1, 14), #(1, 15), "")), #(
                   token.IntType,
                   0,
                 )),
-                #(#(ast.Ident("b"), span.Span(#(1, 16), #(1, 16), "")), #(
+                #(#(ast.Ident("b"), span.Span(#(1, 16), #(1, 17), "")), #(
                   token.IntType,
                   1,
                 )),
               ]),
             ),
-            span.Span(#(1, 9), #(1, 17), ""),
+            span.Span(#(1, 9), #(1, 18), ""),
           ),
           #(
             ast.Sexpr([
-              #(ast.Op(token.Add), span.Span(#(1, 20), #(1, 20), "")),
-              #(ast.Ident("a"), span.Span(#(1, 22), #(1, 22), "")),
-              #(ast.Ident("b"), span.Span(#(1, 24), #(1, 24), "")),
+              #(ast.Op(token.Add), span.Span(#(1, 20), #(1, 21), "")),
+              #(ast.Ident("a"), span.Span(#(1, 22), #(1, 23), "")),
+              #(ast.Ident("b"), span.Span(#(1, 24), #(1, 25), "")),
             ]),
-            span.Span(#(1, 19), #(1, 25), ""),
+            span.Span(#(1, 19), #(1, 26), ""),
           ),
         ]),
-        span.Span(#(1, 1), #(1, 26), ""),
+        span.Span(#(1, 1), #(1, 27), ""),
       ),
     ]),
   )

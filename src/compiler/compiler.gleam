@@ -4,6 +4,7 @@ import error
 import gleam/bytes_tree
 import gleam/dict
 import gleam/int
+import gleam/io
 import gleam/list
 import gleam/result
 import gleam/string
@@ -388,6 +389,7 @@ fn compile_call_expr(
 }
 
 fn compile_local_call(compiler: Compiler, arity: Int, label: Int) -> Compiler {
+  io.debug(compiler.stack_size)
   compile_call(compiler, arity, fn(compiler) {
     add_arg(compiler, arg.new() |> arg.add_opc(arg.Call))
     |> add_arg(arg.new() |> arg.add_tag(arg.U) |> arg.int_opc(arity))
@@ -592,6 +594,15 @@ fn compile_if_expr(
       ),
       label_count: compiler.label_count + 1,
     )
+  use new_compiler <- result.try(
+    Compiler(
+      ..compiler,
+      data: bytes_tree.new(),
+      labels: [],
+      label_count: compiler.label_count + 1,
+    )
+    |> compile_exprs(rest),
+  )
   use compiler <- result.try(compile_exprs(compiler, body))
   let compiler =
     add_arg(compiler, arg.new() |> arg.add_opc(arg.Jump))
@@ -600,10 +611,6 @@ fn compile_if_expr(
       |> arg.add_tag(arg.F)
       |> arg.int_opc(compiler.label_count),
     )
-  use new_compiler <- result.try(
-    Compiler(..compiler, data: bytes_tree.new(), labels: [])
-    |> compile_exprs(rest),
-  )
   Ok(
     Compiler(
       ..compiler,

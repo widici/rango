@@ -72,15 +72,15 @@ pub fn span_lex_test() {
   |> lexer.lex()
   |> should.equal(
     Ok([
-      #(token.LParen, span.Span(#(1, 1), #(1, 1), "test.lisp")),
-      #(token.Op(token.Add), span.Span(#(1, 2), #(1, 2), "test.lisp")),
-      #(token.Int(10), span.Span(#(1, 4), #(1, 5), "test.lisp")),
-      #(token.LParen, span.Span(#(1, 7), #(1, 7), "test.lisp")),
-      #(token.Op(token.Mul), span.Span(#(1, 8), #(1, 8), "test.lisp")),
-      #(token.Int(321), span.Span(#(1, 10), #(1, 12), "test.lisp")),
-      #(token.Int(9876), span.Span(#(1, 14), #(1, 17), "test.lisp")),
-      #(token.RParen, span.Span(#(1, 18), #(1, 18), "test.lisp")),
-      #(token.RParen, span.Span(#(1, 19), #(1, 19), "test.lisp")),
+      #(token.LParen, span.Span(#(1, 1), #(1, 2), "test.lisp")),
+      #(token.Op(token.Add), span.Span(#(1, 2), #(1, 3), "test.lisp")),
+      #(token.Int(10), span.Span(#(1, 4), #(1, 6), "test.lisp")),
+      #(token.LParen, span.Span(#(1, 7), #(1, 8), "test.lisp")),
+      #(token.Op(token.Mul), span.Span(#(1, 8), #(1, 9), "test.lisp")),
+      #(token.Int(321), span.Span(#(1, 10), #(1, 13), "test.lisp")),
+      #(token.Int(9876), span.Span(#(1, 14), #(1, 18), "test.lisp")),
+      #(token.RParen, span.Span(#(1, 18), #(1, 19), "test.lisp")),
+      #(token.RParen, span.Span(#(1, 19), #(1, 20), "test.lisp")),
     ]),
   )
   "\n(+ 10 1)\n\n\t(* 23 4)"
@@ -88,16 +88,16 @@ pub fn span_lex_test() {
   |> lexer.lex()
   |> should.equal(
     Ok([
-      #(token.LParen, span.Span(#(2, 1), #(2, 1), "")),
-      #(token.Op(token.Add), span.Span(#(2, 2), #(2, 2), "")),
-      #(token.Int(10), span.Span(#(2, 4), #(2, 5), "")),
-      #(token.Int(1), span.Span(#(2, 7), #(2, 7), "")),
-      #(token.RParen, span.Span(#(2, 8), #(2, 8), "")),
-      #(token.LParen, span.Span(#(4, 5), #(4, 5), "")),
-      #(token.Op(token.Mul), span.Span(#(4, 6), #(4, 6), "")),
-      #(token.Int(23), span.Span(#(4, 8), #(4, 9), "")),
-      #(token.Int(4), span.Span(#(4, 11), #(4, 11), "")),
-      #(token.RParen, span.Span(#(4, 12), #(4, 12), "")),
+      #(token.LParen, span.Span(#(2, 1), #(2, 2), "")),
+      #(token.Op(token.Add), span.Span(#(2, 2), #(2, 3), "")),
+      #(token.Int(10), span.Span(#(2, 4), #(2, 6), "")),
+      #(token.Int(1), span.Span(#(2, 7), #(2, 8), "")),
+      #(token.RParen, span.Span(#(2, 8), #(2, 9), "")),
+      #(token.LParen, span.Span(#(4, 5), #(4, 6), "")),
+      #(token.Op(token.Mul), span.Span(#(4, 6), #(4, 7), "")),
+      #(token.Int(23), span.Span(#(4, 8), #(4, 10), "")),
+      #(token.Int(4), span.Span(#(4, 11), #(4, 12), "")),
+      #(token.RParen, span.Span(#(4, 12), #(4, 13), "")),
     ]),
   )
 }
