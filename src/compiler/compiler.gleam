@@ -89,6 +89,7 @@ fn compile_expr(
     [#(ast.Nil, _), ..rest] -> Ok(#(compile_nil(compiler), rest))
     [#(ast.Ok, _), ..rest] -> Ok(#(compile_ok(compiler), rest))
     [#(ast.Bool(bool), _), ..rest] -> Ok(#(compile_bool(compiler, bool), rest))
+    // If exprs are handled differently as they require rest
     [
       #(
         ast.Sexpr([
@@ -100,7 +101,6 @@ fn compile_expr(
       ),
       ..rest
     ] -> {
-      // ast.KeyWord(token.If), _), conditional, #(ast.Sexpr(body), _
       use compiler <- result.try(compile_if_expr(
         compiler,
         conditional,
@@ -243,10 +243,6 @@ fn compile_sexpr(
         | token.Or -> compile_conditional(compiler, operator, rest, span)
         _ -> panic
       }
-    //[#(ast.KeyWord(token.If), _), conditional, #(ast.Sexpr(body), _)] -> {
-    //  io.debug(list)
-    //  compile_if_expr(compiler, conditional, body, rest)
-    //}
     [
       #(ast.KeyWord(token.Func), _),
       #(ast.Ident(name), _),
@@ -389,7 +385,6 @@ fn compile_call_expr(
 }
 
 fn compile_local_call(compiler: Compiler, arity: Int, label: Int) -> Compiler {
-  io.debug(compiler.stack_size)
   compile_call(compiler, arity, fn(compiler) {
     add_arg(compiler, arg.new() |> arg.add_opc(arg.Call))
     |> add_arg(arg.new() |> arg.add_tag(arg.U) |> arg.int_opc(arity))
@@ -594,12 +589,13 @@ fn compile_if_expr(
       ),
       label_count: compiler.label_count + 1,
     )
+  let label_count = compiler.label_count
   use new_compiler <- result.try(
     Compiler(
       ..compiler,
       data: bytes_tree.new(),
       labels: [],
-      label_count: compiler.label_count + 1,
+      label_count: compiler.label_count,
     )
     |> compile_exprs(rest),
   )
@@ -615,7 +611,7 @@ fn compile_if_expr(
     Compiler(
       ..compiler,
       labels: list.append(compiler.labels, [
-        #(compiler.label_count, new_compiler.data),
+        #(label_count, new_compiler.data),
         ..new_compiler.labels
       ]),
     ),
@@ -669,6 +665,7 @@ fn compile_func_expr(
       vars:,
     )
   use compiler <- result.try(compile_exprs(compiler, body))
+  io.debug(list.length(compiler.labels))
   Ok(
     list.fold(compiler.labels, compiler, fn(compiler, label) {
       let compiler =
