@@ -58,5 +58,6 @@ gleam test  # Run the tests
 - [x] Read source-code from file instead of basic REPL
 - [x] Read & use a basic prelude written in the language
 - [x] Add better error handling
+- [x] Add license
 - [ ] Improve docs
 - [ ] Add examples
