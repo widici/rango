@@ -39,13 +39,13 @@ pub fn to_string(error: Error) -> String {
       "Token: " <> pprint.format(token_type) <> " is unexpected in this context",
       [],
     )
-    NotFound(name) -> #(name <> " not found in the context", [])
+    NotFound(name) -> #(name <> " not found in this context", [])
     UnexpectedList(list) -> #(
-      "List: " <> pprint.format(list) <> " unexpected in the context",
+      "List: " <> pprint.format(list) <> " unexpected in this context",
       [],
     )
     UnexpectedExpr(expr) -> #(
-      "Expr: " <> pprint.format(expr) <> " in the context",
+      "Expr: " <> pprint.format(expr) <> " in this context",
       [],
     )
     AmbigousCall(name, arity) -> #("Ambigous function call used", [

@@ -1,22 +1,3 @@
-///// Compiles function call to beam instructions
-///// Will output: (for a func w/ a arity of 1)
-///// {allocate,1,stack_size}
-///// {move,{x,0},{y,0}}
-///// {move,{x,stack_size-1},{x,0}}
-///// func()
-///// {move,{x,0},{x,stack_size}}
-///// {move,{y,0},{x,0}}
-///// {deallocate,1}
-///// Compiles function call to beam instructions
-///// Will output: (for a func w/ a arity of 1)
-///// {allocate,1,stack_size}
-///// {move,{x,0},{y,0}}
-///// {move,{x,stack_size-1},{x,0}}
-///// func()
-///// {move,{x,0},{x,stack_size}}
-///// {move,{y,0},{x,0}}
-///// {deallocate,1}
-
 import ast
 import compiler/arg
 import error
@@ -420,6 +401,24 @@ fn compile_external_call(compiler: Compiler, arity: Int, index: Int) -> Compiler
   })
 }
 
+/// Compiles function call to beam instructions
+/// Will output: (for a func w/ a arity of 1)
+/// {allocate,1,stack_size}
+/// {move,{x,0},{y,0}}
+/// {move,{x,stack_size-1},{x,0}}
+/// func()
+/// {move,{x,0},{x,stack_size}}
+/// {move,{y,0},{x,0}}
+/// {deallocate,1}
+/// Compiles function call to beam instructions
+/// Will output: (for a func w/ a arity of 1)
+/// {allocate,1,stack_size}
+/// {move,{x,0},{y,0}}
+/// {move,{x,stack_size-1},{x,0}}
+/// func()
+/// {move,{x,0},{x,stack_size}}
+/// {move,{y,0},{x,0}}
+/// {deallocate,1}
 fn compile_call(
   compiler: Compiler,
   arity: Int,
