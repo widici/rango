@@ -15,7 +15,7 @@ Rango is a small toy programming language targeting BEAM bytecode with a Lisp-in
     1. [Run](#run)
     1. [Load](#load)
 1. [Performance](#performance)
-1. [Inspiration/Resource](#inspirationresources)
+1. [Inspiration/Resources](#inspirationresources)
 1. [License](#license)
 1. [Roadmap](#roadmap)
 
