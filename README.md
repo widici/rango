@@ -6,7 +6,7 @@
 Rango is a small toy programming language targeting BEAM bytecode with a Lisp-inspired syntax, written in Gleam.
 
 <details>
-<summary>Table of Contents
+<summary>Table of Contents</summary>
 
 1. [Examples](#examples)
 1. [Installation](#installation)
