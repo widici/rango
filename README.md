@@ -1,13 +1,55 @@
-# Lisp
+# Rango
 
-## Development
+> [!WARNING]
+> This project is in early development expect some issues and code-breaking changes
 
-```sh
-gleam run   # Run the project
-gleam test  # Run the tests
+Rango is a small toy programming language targeting BEAM bytecode with a Lisp-inspired syntax, written in Gleam.
+
+<details>
+<summary>Table of Contents
+
+1. [Examples](#examples)
+1. [Installation](#installation)
+1. [Usage](#usage)
+    1. [Build](#build)
+    1. [Run](#run)
+    1. [Load](#load)
+1. [Performance](#performance)
+1. [Inspiration/Resource](#inspirationresources)
+1. [License](#license)
+1. [Roadmap](#roadmap)
+
+</details>
+
+## Examples
+
+```lisp
+(fn greet [Str name] (
+    (putsln (<> "Hello " name "! :D"))
+))
 ```
 
-## Todo
+More examples can be found in the [examples directory](./examples).
+
+## Installation
+
+## Usage
+
+### Build
+
+### Run
+
+### Load
+
+## Performance
+
+## Inspiration/Resources
+
+## License
+
+The Rango programming language is distributed under the MIT license. See [LICENSE](./LICENSE) for more information.
+
+## Roadmap
 
 ### Lexer
 
@@ -27,7 +69,6 @@ gleam test  # Run the tests
 - [x] Parse lists
 - [x] Parse parameters
 - [x] Parse spans for expressions
-- [ ] Improve parsing of use expressions, etc. to catch errors before compiling
 
 ### Compiler
 
@@ -59,5 +100,5 @@ gleam test  # Run the tests
 - [x] Read & use a basic prelude written in the language
 - [x] Add better error handling
 - [x] Add license
-- [ ] Improve docs
-- [ ] Add examples
+- [x] Add examples
+- [ ] Add language documentation
