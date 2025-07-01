@@ -15,31 +15,29 @@ import parser
 import simplifile
 
 @external(erlang, "code", "add_path")
-fn add_path(path: charlist.Charlist) -> Nil
+fn add_path(path: charlist.Charlist) -> Bool
+
+type LoadResult {
+  Module(atom.Atom)
+}
 
 @external(erlang, "code", "load_file")
-fn load_file(file: atom.Atom) -> Nil
+fn load_file(file: atom.Atom) -> LoadResult
 
 fn load() -> glint.Command(Nil) {
   use <- glint.command_help(
     "Compiles source-code into a beam instruction bytecode binary and attempts loading the beam file with code:load_file/2",
   )
   use _, args, _ <- glint.command()
-  let assert [path, ..] = args
-  let assert [file_ident, ..dir_path] =
-    string.split(path, "/") |> list.reverse()
-  let assert [file_name, _] = string.split(file_ident, ".")
-  case build_src(path, file_name) {
-    Ok(_) -> {
-      add_path(
-        list.reverse(dir_path) |> string.join("/") |> charlist.from_string(),
-      )
-      load_file(file_name |> atom.create_from_string())
+  case build_src(args) {
+    Ok(file_name) -> {
+      let assert True =
+        charlist.from_string(".")
+        |> add_path()
+      let Module(_) = load_file(file_name |> atom.create_from_string())
       Nil
     }
-    Error(error) ->
-      error.to_string(error)
-      |> io.print_error()
+    Error(e) -> error.to_string(e) |> io.print_error()
   }
 }
 
@@ -48,18 +46,16 @@ fn build() -> glint.Command(Nil) {
     "Compiles source-code into a beam instruction bytecode binary",
   )
   use _, args, _ <- glint.command()
+  let _ =
+    build_src(args)
+    |> result.map_error(fn(e) { error.to_string(e) |> io.print_error() })
+  Nil
+}
+
+fn build_src(args: List(String)) -> Result(String, error.Error) {
   let assert [path, ..] = args
   let assert [file_ident, ..] = string.split(path, "/") |> list.reverse()
   let assert [file_name, _] = string.split(file_ident, ".")
-  case build_src(path, file_name) {
-    Ok(_) -> Nil
-    Error(error) ->
-      error.to_string(error)
-      |> io.print_error()
-  }
-}
-
-fn build_src(path: String, file_name: String) -> Result(Nil, error.Error) {
   let assert Ok(src) = simplifile.read(path)
   let assert Ok(prelude) = simplifile.read("./prelude/prelude.lisp")
   use prelude_tokens <- result.try(
@@ -75,7 +71,7 @@ fn build_src(path: String, file_name: String) -> Result(Nil, error.Error) {
   let beam_module =
     chunk.compile_beam_module(compiler) |> bytes_tree.to_bit_array()
   let assert Ok(Nil) = simplifile.write_bits(file_name <> ".beam", beam_module)
-  Ok(Nil)
+  Ok(file_name)
 }
 
 pub fn main() {
