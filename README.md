@@ -35,11 +35,64 @@ More examples can be found in the [examples directory](./examples).
 
 ## Usage
 
+For a quick overview of the cli the help command can be used:
+
+```sh
+rango --help
+```
+
 ### Build
+
+The build command compiles the source-code read from the provided path and outputs a beam file in the current working directory. The subcommand is used like this:
+
+```sh
+rango build <file_path>
+```
+
+Although the [run command](#run) is generally recommended the beam file can also be executed using Erlang's built in REPL, which doesn't require recompiling to run an already compiled program. It can be used like this:
+
+```sh
+$ erl
+> code:add_path(".").
+> code:load_file(<file_name>).
+> <file_name>:<function_name>(<params>).
+```
+
+Full example with [fibonacci example program](./examples/fib.lisp):
+
+```sh
+$ rango build ./examples/fib.lisp
+$ erl
+> code:add_path(".").
+> code:load_file(fib).
+> fib:fib(0, 1, 10).
+```
 
 ### Run
 
+The program can also be ran directly using the run subcommand which firstly compiles the program (even if it's unchanged) and then runs it, like this:
+
+```sh
+rango run <file_path> <function_name> <..params>
+```
+
+The params are in this case Erlang terms split with spaces without an ending dot.
+
+Here is the same example with the [fibonacci example program](./examples/fib.lisp) but with the run command instead:
+
+```sh
+rango run ./examples/fib.lisp fib 0 1 10
+```
+
 ### Load
+
+There is also the load subcommand that compiles and validates the BEAM file with the [code/load_file:1](https://www.erlang.org/doc/apps/kernel/code.html#load_file/1) Erlang function. This is also done with the [run subcommand](#run) but the load command doesn´t also run the program, the load command can be used like this:
+
+```sh
+rango load <file_path>
+```
+
+This subcommand is mainly meant to be used for quick debugging while developing the langauge itself.
 
 ## Performance
 
@@ -101,4 +154,6 @@ The Rango programming language is distributed under the MIT license. See [LICENS
 - [x] Add better error handling
 - [x] Add license
 - [x] Add examples
+- [x] Add a build, load & run subcommand
+- [ ] Add a list of resources and/or inspiration to the README
 - [ ] Add language documentation
