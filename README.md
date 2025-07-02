@@ -37,7 +37,7 @@ More examples can be found in the [examples directory](./examples).
 
 For a quick overview of the cli the help command can be used:
 
-```sh
+```console
 rango --help
 ```
 
@@ -45,13 +45,13 @@ rango --help
 
 The build command compiles the source-code read from the provided path and outputs a beam file in the current working directory. The subcommand is used like this:
 
-```sh
+```console
 rango build <file_path>
 ```
 
 Although the [run command](#run) is generally recommended the beam file can also be executed using Erlang's built in REPL, which doesn't require recompiling to run an already compiled program. It can be used like this:
 
-```sh
+```console
 $ erl
 > code:add_path(".").
 > code:load_file(<file_name>).
@@ -60,7 +60,7 @@ $ erl
 
 Full example with [fibonacci example program](./examples/fib.lisp):
 
-```sh
+```console
 $ rango build ./examples/fib.lisp
 $ erl
 > code:add_path(".").
@@ -72,7 +72,7 @@ $ erl
 
 The program can also be ran directly using the run subcommand which firstly compiles the program (even if it's unchanged) and then runs it, like this:
 
-```sh
+```console
 rango run <file_path> <function_name> <..params>
 ```
 
@@ -80,7 +80,7 @@ The params are in this case Erlang terms split with spaces without an ending dot
 
 Here is the same example with the [fibonacci example program](./examples/fib.lisp) but with the run command instead:
 
-```sh
+```console
 rango run ./examples/fib.lisp fib 0 1 10
 ```
 
@@ -88,7 +88,7 @@ rango run ./examples/fib.lisp fib 0 1 10
 
 There is also the load subcommand that compiles and validates the BEAM file with the [code/load_file:1](https://www.erlang.org/doc/apps/kernel/code.html#load_file/1) Erlang function. This is also done with the [run subcommand](#run) but the load command doesn´t also run the program, the load command can be used like this:
 
-```sh
+```console
 rango load <file_path>
 ```
 
