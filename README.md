@@ -86,7 +86,7 @@ rango run ./examples/fib.lisp fib 0 1 10
 
 ### Load
 
-There is also the load subcommand that compiles and validates the BEAM file with the [code/load_file:1](https://www.erlang.org/doc/apps/kernel/code.html#load_file/1) Erlang function. This is also done with the [run subcommand](#run) but the load command doesn´t also run the program, the load command can be used like this:
+There is also the load subcommand that compiles and validates the BEAM file with the [code/load_file:1](https://www.erlang.org/doc/apps/kernel/code.html#load_file/1) Erlang function. The [run command](#run) also does this but additionally also runs the code itself, which can be unwanted. The load command can be used like this:
 
 ```console
 rango load <file_path>

@@ -2,6 +2,7 @@ import argv
 import compiler/chunk
 import compiler/compiler
 import error
+import filepath
 import gleam
 import gleam/bytes_tree
 import gleam/dynamic
@@ -15,6 +16,12 @@ import glint
 import lexer
 import parser
 import simplifile
+
+@external(erlang, "escript", "script_name")
+fn script_name() -> charlist.Charlist
+
+@external(erlang, "filename", "absname")
+fn absname(file: charlist.Charlist) -> charlist.Charlist
 
 @external(erlang, "code", "add_path")
 fn add_path(path: charlist.Charlist) -> Bool
@@ -91,7 +98,13 @@ fn build_src(path: String) -> Result(String, error.Error) {
   let assert [file_ident, ..] = string.split(path, "/") |> list.reverse()
   let assert [file_name, _] = string.split(file_ident, ".")
   let assert gleam.Ok(src) = simplifile.read(path)
-  let assert gleam.Ok(prelude) = simplifile.read("./prelude/prelude.lisp")
+  let project_path =
+    script_name()
+    |> absname()
+    |> charlist.to_string()
+    |> filepath.directory_name()
+  let assert gleam.Ok(prelude) =
+    simplifile.read(project_path <> "/prelude/prelude.lisp")
   use prelude_tokens <- result.try(
     lexer.new(prelude, "./prelude/prelude.lisp")
     |> lexer.lex(),
