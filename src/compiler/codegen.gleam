@@ -762,21 +762,19 @@ fn add_func_id(
     False -> Ok(Nil)
   })
   let #(compiler, name_id) = get_atom_id(compiler, func.name)
-  use _ <- result.try(
-    case
-      dict.filter(compiler.imports, fn(key, _) {
-        key.1 == name_id && key.2 == func.arity
-      })
-      |> dict.size()
-    {
-      x if x == 0 -> Ok(Nil)
-      _ ->
-        Error(error.Error(
-          error.ImportConflict(func.module, func.name, func.arity),
-          span,
-        ))
-    },
-  )
+  use _ <- result.try(case
+    dict.filter(compiler.imports, fn(key, _) {
+      key.1 == name_id && key.2 == func.arity
+    })
+    |> dict.size()
+  {
+    x if x == 0 -> Ok(Nil)
+    _ ->
+      Error(error.Error(
+        error.ImportConflict(func.module, func.name, func.arity),
+        span,
+      ))
+  })
   Ok(
     Compiler(
       ..compiler,
