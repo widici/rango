@@ -137,6 +137,12 @@ This subcommand is mainly meant to be used for quick debugging while developing 
 
 ## Inspiration/resources
 
+- [The Bada programming language](https://github.com/tsoding/bada) & [Tsoding's stream](https://www.youtube.com/watch?v=6k_sR6yCvps&list=PLpM-Dvs8t0VY3Z6U756L08xySMlGdRrF8&index=2&t=1606s)
+- [The beam_makeops script documentation](https://www.erlang.org/doc/apps/erts/beam_makeops.html)
+- [A brief introduction to BEAM](https://www.erlang.org/blog/a-brief-beam-primer/)
+- [A peak into the Erlang compiler and BEAM bytecode](https://gomoripeti.github.io/beam_by_example/)
+- and much more!
+
 ## License
 
 The Rango programming language is distributed under the MIT license. See [LICENSE](./LICENSE) for more information.
@@ -194,5 +200,7 @@ The Rango programming language is distributed under the MIT license. See [LICENS
 - [x] Add license
 - [x] Add examples
 - [x] Add a build, load & run subcommand
-- [ ] Add a list of resources and/or inspiration to the README
+- [x] Create a GitHub workflow for creating a nightly release on push
+- [x] Add prerequisites & installation instructions
+- [x] Add a list of resources and/or inspiration to the README
 - [ ] Add language documentation
