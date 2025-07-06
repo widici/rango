@@ -9,13 +9,15 @@ Rango is a small toy programming language targeting BEAM bytecode with a Lisp-in
 <summary>Table of Contents</summary>
 
 1. [Examples](#examples)
+1. [Prerequisites](#prerequisites)
 1. [Installation](#installation)
+    1. [From release](#from-release)
+    2. [From source](#from-source)
 1. [Usage](#usage)
     1. [Build](#build)
     1. [Run](#run)
     1. [Load](#load)
-1. [Performance](#performance)
-1. [Inspiration/Resources](#inspirationresources)
+1. [Inspiration/resources](#inspirationresources)
 1. [License](#license)
 1. [Roadmap](#roadmap)
 
@@ -31,13 +33,52 @@ Rango is a small toy programming language targeting BEAM bytecode with a Lisp-in
 
 More examples can be found in the [examples directory](./examples).
 
+## Prerequisites
+
+> [!NOTE]
+> Both Erlang and Rebar3 comes prepackaged when installing Gleam in some package managers, but not all of them.
+
+- [Gleam](https://gleam.run/getting-started/installing/#installing-gleam)
+- [Erlang](https://gleam.run/getting-started/installing/#installing-erlang)
+- [Rebar3](https://gleam.run/getting-started/installing/#installing-rebar3)
+
 ## Installation
+
+### From release
+
+Download the escript from the [nightly release](https://github.com/widici/rango/releases/tag/nightly) and add it to PATH.
+
+### From source
+
+Clone the repository:
+
+```sh
+# Either with SSH:
+git clone git@github.com:widici/rango.git
+
+# ... or with HTTPS:
+git clone https://github.com/widici/rango.git
+```
+
+Build the project:
+
+```sh
+gleam build
+```
+
+Generate the escript:
+
+```sh
+gleam run -m gleescript
+```
+
+And then add the file to PATH.
 
 ## Usage
 
 For a quick overview of the cli the help command can be used:
 
-```console
+```sh
 rango --help
 ```
 
@@ -80,7 +121,7 @@ The params are in this case Erlang terms split with spaces without an ending dot
 
 Here is the same example with the [fibonacci example program](./examples/fib.lisp) but with the run command instead:
 
-```console
+```sh
 rango run ./examples/fib.lisp fib 0 1 10
 ```
 
@@ -94,9 +135,7 @@ rango load <file_path>
 
 This subcommand is mainly meant to be used for quick debugging while developing the langauge itself.
 
-## Performance
-
-## Inspiration/Resources
+## Inspiration/resources
 
 ## License
 
