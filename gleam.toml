@@ -13,7 +13,7 @@ version = "1.0.0"
 # https://gleam.run/writing-gleam/gleam-toml/.
 
 [dependencies]
-gleam_erlang = ">= 0.26.0 and < 1.0.0"
+gleam_erlang = ">= 1.0.0 and < 2.0.0"
 gleam_stdlib = ">= 0.43.0 and < 1.0.0"
 simplifile = ">= 2.2.0 and < 3.0.0"
 glint = ">= 1.2.0 and < 2.0.0"

@@ -1,6 +1,6 @@
 import argv
-import compiler/chunk
-import compiler/compiler
+import compiler/chunks
+import compiler/codegen
 import error
 import filepath
 import gleam/bytes_tree
@@ -112,10 +112,10 @@ fn build_src(path: String) -> Result(String, error.Error) {
   let tokens = prelude_tokens |> list.append(src_tokens)
   use ast <- result.try(tokens |> parser.parse())
   use compiler <- result.try(
-    compiler.new(file_name) |> compiler.compile_exprs(ast),
+    codegen.new(file_name) |> codegen.compile_exprs(ast),
   )
   let beam_module =
-    chunk.compile_beam_module(compiler) |> bytes_tree.to_bit_array()
+    chunks.compile_beam_module(compiler) |> bytes_tree.to_bit_array()
   let assert Ok(Nil) = simplifile.write_bits(file_name <> ".beam", beam_module)
   Ok(file_name)
 }

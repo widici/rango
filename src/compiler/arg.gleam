@@ -1,3 +1,5 @@
+//// Provides a abstraction layer over BEAM bytecode instructions to make them easier to work with
+
 import gleam/int
 import gleam/option
 

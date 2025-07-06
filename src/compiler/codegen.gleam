@@ -1,3 +1,6 @@
+//// Module responsible for generating the BEAM bytecode instructions and metadata for generating the chunks
+//// Also responsible for the API to add args & other functions to manipulate the the data/instructions
+
 import ast
 import compiler/arg
 import error
@@ -119,12 +122,15 @@ fn compile_expr(
   }
 }
 
-/// Compiles an integer expression to beam instructions
-/// Will output: {move,{integer,contents},{x,stack_size}}
-fn compile_int(compiler: Compiler, contents: Int) -> Compiler {
+// A general function used for compiling common move instructions
+// Will output: {move,arg_fn(),{x,stack_size}}
+fn compile_move(
+  compiler: Compiler,
+  arg_fn: fn(Compiler) -> Compiler,
+) -> Compiler {
   Compiler(
     ..add_arg(compiler, arg.new() |> arg.add_opc(arg.Move))
-    |> add_arg(arg.new() |> arg.add_tag(arg.I) |> arg.int_opc(contents))
+    |> arg_fn()
     |> add_arg(
       arg.new()
       |> arg.add_tag(arg.X)
@@ -132,6 +138,15 @@ fn compile_int(compiler: Compiler, contents: Int) -> Compiler {
     ),
     stack_size: compiler.stack_size + 1,
   )
+}
+
+/// Compiles an integer expression to beam instructions
+/// Will output: {move,{integer,contents},{x,stack_size}}
+fn compile_int(compiler: Compiler, contents: Int) -> Compiler {
+  compile_move(compiler, fn(compiler) {
+    compiler
+    |> add_arg(arg.new() |> arg.add_tag(arg.I) |> arg.int_opc(contents))
+  })
 }
 
 /// Compiles a variable used in function body to beam instructions
@@ -144,42 +159,21 @@ fn compile_var(
   case compiler.vars |> dict.get(name) {
     Ok(index) -> {
       Ok(
-        Compiler(
-          ..add_arg(compiler, arg.new() |> arg.add_opc(arg.Move))
+        compile_move(compiler, fn(compiler) {
+          compiler
           |> add_arg(arg.new() |> arg.add_tag(arg.X) |> arg.int_opc(index))
-          |> add_arg(
-            arg.new() |> arg.add_tag(arg.X) |> arg.int_opc(compiler.stack_size),
-          ),
-          stack_size: compiler.stack_size + 1,
-        ),
+        }),
       )
     }
     Error(_) -> Error(error.Error(error.NotFound(name), span))
   }
 }
 
-/// Compiles strings to beam instructions
-/// ### Important
-/// Compiles to charlists not to binaries
-fn compile_str(compiler: Compiler, str: String) -> Compiler {
-  string.to_utf_codepoints(str)
-  |> list.map(string.utf_codepoint_to_int)
-  |> list.fold(compiler, fn(compiler, code_point) {
-    compile_int(compiler, code_point)
-  })
-  |> compile_list(string.length(str))
-}
-
 /// Will output: {move,{atom,id},{x,stack_size}}
 fn compile_atom(compiler: Compiler, id: Int) -> Compiler {
-  Compiler(
-    ..add_arg(compiler, arg.new() |> arg.add_opc(arg.Move))
-    |> add_arg(arg.new() |> arg.add_tag(arg.A) |> arg.int_opc(id))
-    |> add_arg(
-      arg.new() |> arg.add_tag(arg.X) |> arg.int_opc(compiler.stack_size),
-    ),
-    stack_size: compiler.stack_size + 1,
-  )
+  compile_move(compiler, fn(compiler) {
+    compiler |> add_arg(arg.new() |> arg.add_tag(arg.A) |> arg.int_opc(id))
+  })
 }
 
 /// Will output: {move,{atom,0},{x,stack_size}}
@@ -199,6 +193,18 @@ fn compile_bool(compiler: Compiler, bool: Bool) -> Compiler {
   }
   let #(compiler, atom_id) = get_atom_id(compiler, name)
   compile_atom(compiler, atom_id)
+}
+
+/// Compiles strings to beam instructions
+/// ### Important
+/// Compiles to charlists not to binaries
+fn compile_str(compiler: Compiler, str: String) -> Compiler {
+  string.to_utf_codepoints(str)
+  |> list.map(string.utf_codepoint_to_int)
+  |> list.fold(compiler, fn(compiler, code_point) {
+    compile_int(compiler, code_point)
+  })
+  |> compile_list(string.length(str))
 }
 
 fn compile_sexpr(
@@ -401,15 +407,6 @@ fn compile_external_call(compiler: Compiler, arity: Int, index: Int) -> Compiler
   })
 }
 
-/// Compiles function call to beam instructions
-/// Will output: (for a func w/ a arity of 1)
-/// {allocate,1,stack_size}
-/// {move,{x,0},{y,0}}
-/// {move,{x,stack_size-1},{x,0}}
-/// func()
-/// {move,{x,0},{x,stack_size}}
-/// {move,{y,0},{x,0}}
-/// {deallocate,1}
 /// Compiles function call to beam instructions
 /// Will output: (for a func w/ a arity of 1)
 /// {allocate,1,stack_size}
@@ -645,7 +642,6 @@ fn compile_if_expr(
 ///     {func_info,{atom,module-id},{atom,name-id}}.
 ///   {label,label-count+2}.
 ///     body
-///
 fn compile_func_expr(
   compiler: Compiler,
   name: String,
@@ -766,19 +762,21 @@ fn add_func_id(
     False -> Ok(Nil)
   })
   let #(compiler, name_id) = get_atom_id(compiler, func.name)
-  use _ <- result.try(case
-    dict.filter(compiler.imports, fn(key, _) {
-      key.1 == name_id && key.2 == func.arity
-    })
-    |> dict.size()
-  {
-    x if x == 0 -> Ok(Nil)
-    _ ->
-      Error(error.Error(
-        error.ImportConflict(func.module, func.name, func.arity),
-        span,
-      ))
-  })
+  use _ <- result.try(
+    case
+      dict.filter(compiler.imports, fn(key, _) {
+        key.1 == name_id && key.2 == func.arity
+      })
+      |> dict.size()
+    {
+      x if x == 0 -> Ok(Nil)
+      _ ->
+        Error(error.Error(
+          error.ImportConflict(func.module, func.name, func.arity),
+          span,
+        ))
+    },
+  )
   Ok(
     Compiler(
       ..compiler,

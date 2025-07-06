@@ -1,4 +1,4 @@
-import compiler/chunk
+import compiler/chunks
 import gleam/bit_array
 import gleam/bytes_tree
 import gleam/list
@@ -12,7 +12,7 @@ pub fn pad_chunk_test() {
     list.repeat(<<0xff>>, 6) |> bit_array.concat(),
   ]
   |> list.each(fn(x) {
-    bytes_tree.byte_size({ bytes_tree.from_bit_array(x) |> chunk.pad_chunk() })
+    bytes_tree.byte_size({ bytes_tree.from_bit_array(x) |> chunks.pad_chunk() })
     % 4
     |> should.equal(0)
   })

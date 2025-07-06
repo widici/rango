@@ -3,7 +3,7 @@
 > [!WARNING]
 > This project is in early development expect some issues and code-breaking changes
 
-Rango is a small toy programming language targeting BEAM bytecode with a Lisp-inspired syntax, written in Gleam.
+Rango is a small compiled toy programming language targeting BEAM bytecode with a Lisp-inspired syntax, written in Gleam.
 
 <details>
 <summary>Table of Contents</summary>

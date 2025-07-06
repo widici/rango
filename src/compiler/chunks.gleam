@@ -1,5 +1,7 @@
+//// Generates the chunks for the IFF file-format used by BEAM based on instructions & metadata from codegen
+
 import compiler/arg
-import compiler/compiler
+import compiler/codegen
 import gleam/bit_array
 import gleam/bytes_tree
 import gleam/dict
@@ -12,7 +14,7 @@ import gleam/string
 ///   Size:32/big,                  // big endian, how many more bytes are there
 ///   FormType:4/unit:8 = "BEAM"
 /// >>
-pub fn compile_beam_module(compiler: compiler.Compiler) -> bytes_tree.BytesTree {
+pub fn compile_beam_module(compiler: codegen.Compiler) -> bytes_tree.BytesTree {
   let chunks =
     [
       compile_import_chunk,
@@ -54,8 +56,8 @@ fn compile_chunk(
 ///   Padding4:0..3/unit:8
 /// >>
 fn compile_import_chunk(
-  compiler: compiler.Compiler,
-) -> #(compiler.Compiler, bytes_tree.BytesTree) {
+  compiler: codegen.Compiler,
+) -> #(codegen.Compiler, bytes_tree.BytesTree) {
   let data =
     bytes_tree.from_bit_array(<<dict.size(compiler.imports):big-size(32)>>)
     |> bytes_tree.append(
@@ -84,14 +86,14 @@ fn compile_import_chunk(
 //   Padding4:0..3/unit:8
 // >>
 fn compile_code_chunk(
-  compiler: compiler.Compiler,
-) -> #(compiler.Compiler, bytes_tree.BytesTree) {
+  compiler: codegen.Compiler,
+) -> #(codegen.Compiler, bytes_tree.BytesTree) {
   let labels = compiler.label_count + 1
   let sub_size = 16
   let instruction_set = 0
   let opcode_max = 169
   let compiler =
-    compiler |> compiler.add_arg(arg.new() |> arg.add_opc(arg.IntCodeEnd))
+    compiler |> codegen.add_arg(arg.new() |> arg.add_opc(arg.IntCodeEnd))
   let data =
     bytes_tree.from_bit_array(<<
       sub_size:big-size(32),
@@ -115,8 +117,8 @@ fn compile_code_chunk(
 ///   Padding4:0..3/unit:8
 /// >>
 fn compile_export_chunk(
-  compiler: compiler.Compiler,
-) -> #(compiler.Compiler, bytes_tree.BytesTree) {
+  compiler: codegen.Compiler,
+) -> #(codegen.Compiler, bytes_tree.BytesTree) {
   let data =
     bytes_tree.from_bit_array(<<dict.size(compiler.exports):big-size(32)>>)
     |> bytes_tree.append(
@@ -139,8 +141,8 @@ fn compile_export_chunk(
 /// ### Important
 /// String chunk is currently unused and only implemented to fill beam requirements
 fn compile_string_chunk(
-  compiler: compiler.Compiler,
-) -> #(compiler.Compiler, bytes_tree.BytesTree) {
+  compiler: codegen.Compiler,
+) -> #(codegen.Compiler, bytes_tree.BytesTree) {
   #(compiler, compile_chunk("StrT", bytes_tree.new()))
 }
 
@@ -152,8 +154,8 @@ fn compile_string_chunk(
 ///   Padding4:0..3/unit:8
 /// >>
 fn compile_atom_chunk(
-  compiler: compiler.Compiler,
-) -> #(compiler.Compiler, bytes_tree.BytesTree) {
+  compiler: codegen.Compiler,
+) -> #(codegen.Compiler, bytes_tree.BytesTree) {
   let data =
     bytes_tree.from_bit_array(<<dict.size(compiler.atoms):big-size(32)>>)
     |> bytes_tree.append(
