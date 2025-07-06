@@ -3,7 +3,6 @@ import compiler/chunk
 import compiler/compiler
 import error
 import filepath
-import gleam
 import gleam/bytes_tree
 import gleam/dynamic
 import gleam/erlang/atom
@@ -49,7 +48,7 @@ fn run() -> glint.Command(Nil) {
   )
   use _, args, _ <- glint.command()
   let assert [path, function, ..rest] = args
-  let assert gleam.Ok(file_name) =
+  let assert Ok(file_name) =
     load_program(path)
     |> result.map_error(fn(e) { error.to_string(e) |> io.print_error() })
   let params =
@@ -81,7 +80,7 @@ fn load_program(path: String) -> Result(String, error.Error) {
     charlist.from_string(".")
     |> add_path()
   let Module(_) = load_file(file_name |> atom.create_from_string())
-  gleam.Ok(file_name)
+  Ok(file_name)
 }
 
 fn build() -> glint.Command(Nil) {
@@ -97,13 +96,13 @@ fn build() -> glint.Command(Nil) {
 fn build_src(path: String) -> Result(String, error.Error) {
   let assert [file_ident, ..] = string.split(path, "/") |> list.reverse()
   let assert [file_name, _] = string.split(file_ident, ".")
-  let assert gleam.Ok(src) = simplifile.read(path)
+  let assert Ok(src) = simplifile.read(path)
   let project_path =
     script_name()
     |> absname()
     |> charlist.to_string()
     |> filepath.directory_name()
-  let assert gleam.Ok(prelude) =
+  let assert Ok(prelude) =
     simplifile.read(project_path <> "/prelude/prelude.lisp")
   use prelude_tokens <- result.try(
     lexer.new(prelude, "./prelude/prelude.lisp")
@@ -117,9 +116,8 @@ fn build_src(path: String) -> Result(String, error.Error) {
   )
   let beam_module =
     chunk.compile_beam_module(compiler) |> bytes_tree.to_bit_array()
-  let assert gleam.Ok(Nil) =
-    simplifile.write_bits(file_name <> ".beam", beam_module)
-  gleam.Ok(file_name)
+  let assert Ok(Nil) = simplifile.write_bits(file_name <> ".beam", beam_module)
+  Ok(file_name)
 }
 
 pub fn main() {
