@@ -1,6 +1,6 @@
 # Rango
 
-> [!WARNING]
+> [!IMPORTANT]
 > This project is in early development expect some issues and code-breaking changes
 
 Rango is a small compiled toy programming language targeting BEAM bytecode with a Lisp-inspired syntax, written in Gleam.
@@ -18,8 +18,8 @@ Rango is a small compiled toy programming language targeting BEAM bytecode with 
     1. [Run](#run)
     1. [Load](#load)
 1. [Inspiration/resources](#inspirationresources)
-1. [License](#license)
 1. [Roadmap](#roadmap)
+1. [License](#license)
 
 </details>
 
@@ -36,7 +36,7 @@ More examples can be found in the [examples directory](./examples).
 ## Prerequisites
 
 > [!NOTE]
-> Both Erlang and Rebar3 comes prepackaged when installing Gleam in some package managers, but not all of them.
+> Erlang and Rebar3 does not come prepackaged, when installing Gleam, in every package manager. 
 
 - [Gleam](https://gleam.run/getting-started/installing/#installing-gleam)
 - [Erlang](https://gleam.run/getting-started/installing/#installing-erlang)
@@ -117,7 +117,7 @@ The program can also be ran directly using the run subcommand which firstly comp
 rango run <file_path> <function_name> <..params>
 ```
 
-The params are in this case Erlang terms split with spaces without an ending dot.
+The parameters are in this case Erlang terms split with spaces without an ending dot.
 
 Here is the same example with the [fibonacci example program](./examples/fib.lisp) but with the run command instead:
 
@@ -127,7 +127,7 @@ rango run ./examples/fib.lisp fib 0 1 10
 
 ### Load
 
-There is also the load subcommand that compiles and validates the BEAM file with the [code/load_file:1](https://www.erlang.org/doc/apps/kernel/code.html#load_file/1) Erlang function. The [run command](#run) also does this but additionally runs the code itself, which can be unwanted. The load command can be used like this:
+There is also the load subcommand that compiles and validates the BEAM file using the [code/load_file:1](https://www.erlang.org/doc/apps/kernel/code.html#load_file/1) Erlang function. The [run command](#run) also does this but additionally runs the code itself, which can be unwanted. The load command can be used like this:
 
 ```console
 rango load <file_path>
@@ -141,11 +141,7 @@ This subcommand is mainly meant to be used for quick debugging while developing 
 - [The beam_makeops script documentation](https://www.erlang.org/doc/apps/erts/beam_makeops.html)
 - [A brief introduction to BEAM](https://www.erlang.org/blog/a-brief-beam-primer/)
 - [A peak into the Erlang compiler and BEAM bytecode](https://gomoripeti.github.io/beam_by_example/)
-- and much more!
-
-## License
-
-The Rango programming language is distributed under the MIT license. See [LICENSE](./LICENSE) for more information.
+- and many more! :D
 
 ## Roadmap
 
@@ -204,3 +200,7 @@ The Rango programming language is distributed under the MIT license. See [LICENS
 - [x] Add prerequisites & installation instructions
 - [x] Add a list of resources and/or inspiration to the README
 - [ ] Add language documentation
+
+## License
+
+The Rango programming language is distributed under the MIT license. See [LICENSE](./LICENSE) for more information.
